@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "profiles": {
+    "desktop": {
+      "width": 1440,
+      "height": 1000
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "roots": [
+    {
+      "id": "today",
+      "area": "today",
+      "title": "Today",
+      "path": "/today",
+      "heading": "Today"
+    },
+    {
+      "id": "sessions",
+      "area": "train",
+      "title": "Sessions",
+      "path": "/train/sessions",
+      "heading": "Train"
+    },
+    {
+      "id": "workouts",
+      "area": "train",
+      "title": "Workouts",
+      "path": "/train/workouts",
+      "heading": "Train"
+    },
+    {
+      "id": "exercises",
+      "area": "train",
+      "title": "Exercises",
+      "path": "/train/exercises",
+      "heading": "Train"
+    },
+    {
+      "id": "log",
+      "area": "nutrition",
+      "title": "Nutrition log",
+      "path": "/nutrition",
+      "heading": "Nutrition"
+    },
+    {
+      "id": "plans",
+      "area": "nutrition",
+      "title": "Plans",
+      "path": "/nutrition/plans",
+      "heading": "Nutrition"
+    },
+    {
+      "id": "foods",
+      "area": "nutrition",
+      "title": "Foods",
+      "path": "/nutrition/foods",
+      "heading": "Nutrition"
+    },
+    {
+      "id": "meals",
+      "area": "nutrition",
+      "title": "Meals",
+      "path": "/nutrition/meals",
+      "heading": "Nutrition"
+    },
+    {
+      "id": "muscles",
+      "area": "progress",
+      "title": "Muscles",
+      "path": "/progress/muscles",
+      "heading": "Progress"
+    },
+    {
+      "id": "strength",
+      "area": "progress",
+      "title": "Strength",
+      "path": "/progress/strength",
+      "heading": "Progress"
+    },
+    {
+      "id": "body",
+      "area": "progress",
+      "title": "Body",
+      "path": "/progress/body",
+      "heading": "Progress"
+    },
+    {
+      "id": "energy",
+      "area": "progress",
+      "title": "Energy",
+      "path": "/progress/energy",
+      "heading": "Progress"
+    },
+    {
+      "id": "journal",
+      "area": "me",
+      "title": "Journal",
+      "path": "/me/journal",
+      "heading": "Me"
+    },
+    {
+      "id": "account",
+      "area": "me",
+      "title": "Account",
+      "path": "/me/account",
+      "heading": "Me"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "public-auth",
+      "area": "getting-started",
+      "title": "Inspect public sign-in and sign-up",
+      "frames": ["signin", "signup"]
+    },
+    {
+      "id": "session",
+      "area": "train",
+      "title": "Log a strength set and use the cross-area rest timer",
+      "frames": ["before", "logged", "today", "returned"]
+    },
+    {
+      "id": "plan-log",
+      "area": "nutrition",
+      "title": "Append a planned slot beside existing intake",
+      "frames": ["before", "confirm", "logged"]
+    },
+    {
+      "id": "journal-crud",
+      "area": "me",
+      "title": "Create, edit and delete a journal entry",
+      "frames": ["new", "filled", "created", "edit", "updated", "confirm", "deleted"]
+    },
+    {
+      "id": "appearance",
+      "area": "me",
+      "title": "Change appearance and return to Today",
+      "frames": ["light", "today", "dark"]
+    }
+  ]
+}

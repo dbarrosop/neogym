@@ -214,6 +214,12 @@ test requires all current captures to have a curated home. After changing the
 layout, run `render`, the Python tests and `validate` again. The HTML has inline
 CSS/JavaScript, works via `file://` and needs its adjacent `screenshots/` folder.
 
+The platform-independent renderer now lives in `tools/gallery.py`; the iOS module
+keeps its curated layout, iPhone page copy and sizing defaults. The separate
+[web catalog](../web/README.md) uses the same renderer with its own dimensions and
+browser driver. Renderer changes must preserve existing iOS HTML output and must
+not recapture or rewrite iOS PNGs/provenance as a side effect.
+
 Review the images, not just the gate: charts own drag gestures and an otherwise
 successful screenshot can show the wrong scroll position. The tooling uses
 heading/row anchors to frame long charts and a left-padding drag fallback. Numeric
@@ -279,7 +285,8 @@ catalog substitutes for signed archives, physical integrations or App Review acc
 | `ios/NeoGym/UITests/DemoGuideCaptureUITests.swift` | Opt-in XCTest UI driver and original screenshot writer |
 | `ios/NeoGym/Scripts/capture-demo-guide.py` | Host command bridge, state checks, PNG storage, completeness gate and rendering |
 | `ios/NeoGym/Scripts/demo-guide-workflows.py` | Explicit UI paths and canonical workflow registry |
-| `ios/NeoGym/Scripts/demo-guide-gallery.py` | Curated section/row/frame layout and single-page HTML renderer |
+| `ios/NeoGym/Scripts/demo-guide-gallery.py` | Curated iOS section/row/frame layout, copy and renderer adapter |
+| `tools/gallery.py` | Shared platform-independent HTML/CSS/JS renderer (iOS sizing remains the default) |
 | `ios/NeoGym/Scripts/test_demo_guide.py` | Host-only tooling and no-op recapture tests |
 | `ios/NeoGym/Sources/NeoGymKit/Resources/gallery-capture.json` | Versioned clock/locale/timezone/font/status-bar profile |
 | `ios/NeoGym/Sources/NeoGymKit/AppClock.swift` | Capture-only domain clock and profile loading |

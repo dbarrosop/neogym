@@ -50,6 +50,7 @@
             hasura-cli
             bun
             wrangler
+            python3
           ]
           ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
             xcodegen

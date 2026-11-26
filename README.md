@@ -2,7 +2,7 @@
 
 A modern fitness app scaffold built on **TanStack Start** + **Nhost** with **Tailwind v4** and **shadcn/ui**.
 
-The frontend is a fully type-safe React 19 app driven by file-based routing, deployed as a static SPA on Cloudflare Workers for Platforms. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, and `wrangler` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
+The frontend is a fully type-safe React 19 app driven by file-based routing, deployed as a static SPA on Cloudflare Workers for Platforms. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Frontend tooling — `bun`, `biome`, `wrangler`, and `python3` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
 
 ## Stack
 
@@ -29,7 +29,7 @@ The frontend is a fully type-safe React 19 app driven by file-based routing, dep
 - Xcode for iOS simulator builds
 - Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`nhost`, `bun`, `biome`, `wrangler`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
+`nhost`, `bun`, `biome`, `wrangler`, `python3`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. Python is pinned through `flake.lock` for the web gallery tooling and its regression tests in `bun run check`. Native capture/release commands are unchanged; the shared renderer and native scripts retain their Python 3.9 floor. On macOS, `/usr/bin/python3` is an `xcrun` shim and can also select Nix Python inside the devshell; outside it currently provides 3.9. See [Toolchain guidance](CLAUDE.md#toolchain) for the additional outside-devshell compatibility checks after shared/native Python changes (macOS only, not a Linux prerequisite). If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
 
 ## Quick start
 
@@ -72,6 +72,9 @@ All run from `frontend/` and require `nix develop ../ --command` as a prefix unl
 | `bun run codegen` | Dump role schemas/diffs, then generate typed GraphQL operations into `src/gql/` (requires backend up) |
 | `bun run codegen:graphql-schema` | Refresh only the Hasura/Nhost schema dumps and diffs |
 | `bun run codegen:graphql` | Generate types offline from the checked-in Nhost user-role SDL |
+| `bun run gallery:serve` | Start the local-only app capture server (browse `http://localhost:5173`) |
+| `bun run gallery:capture --output ../.nhost-code/tmp/web-gallery` | Opt-in desktop/mobile capture against local Nhost |
+| `bun run gallery:validate` / `bun run gallery:render` | Validate/render the retained web catalog offline |
 
 Backend (from `backend/`):
 
@@ -122,11 +125,27 @@ store after the remote request attempt. Native PKCE email change uses
 After changing auth redirect config, restart the local Nhost stack because the
 CLI does not hot-reload `nhost.toml`.
 
+## Visual app guides
+
+- **[Web gallery](docs/web/gallery.html)** — 66 actual Chromium screenshots,
+  desktop and mobile layouts, all 14 web section roots and representative logging,
+  Journal CRUD and appearance workflows. [Guide](docs/web/README.md) ·
+  [Capture/refresh instructions](docs/web/capture.md).
+- **[iPhone gallery](docs/ios/gallery.html)** — the separate native demo catalog.
+  [Guide](docs/ios/README.md) · [Capture instructions](docs/ios/capture.md).
+
+Both are dependency-free generated HTML with adjacent PNGs, not app routes or
+production build outputs. Open them directly in a browser. Web capture is opt-in
+Playwright against local Nhost with disposable accounts/private fictional data;
+iPhone capture uses XCTest and the isolated demo runtime. They share the Python
+renderer in `tools/gallery.py`, not a data/auth runtime. See each guide for what
+its retained evidence does and does not cover.
+
 ## Project layout
 
 ```
 .
-├── flake.nix                  # Nix devshell — nhost + bun + biome + XcodeGen on Darwin
+├── flake.nix                  # Nix devshell — nhost + bun + biome + python3 + XcodeGen on Darwin
 ├── ios/NeoGym/                # SwiftUI app + XcodeGen spec + NeoGymKit package
 ├── frontend/
 │   ├── src/

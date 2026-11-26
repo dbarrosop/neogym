@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import { JournalEntryForm, type JournalEntryFormValues } from "@/components/journal-entry-form";
 import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
-import { JournalLabels_Constraint } from "@/gql/graphql";
 import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import { journalEntryInsert } from "@/lib/journal-entry-input";
 
 const JournalLabelsForFormQuery = graphql(`
   query JournalLabelsForForm {
@@ -41,26 +41,7 @@ function NewJournalEntryRoute() {
   const createMutation = useMutation({
     mutationFn: (values: JournalEntryFormValues) =>
       gqlRequest(InsertJournalEntryMutation, {
-        obj: {
-          entryDate: values.entryDate,
-          title: values.title || null,
-          body: values.body,
-          journalEntryLabels: {
-            data: values.labels.map((l) =>
-              l.id
-                ? { labelId: l.id }
-                : {
-                    label: {
-                      data: { name: l.name },
-                      on_conflict: {
-                        constraint: JournalLabels_Constraint.JournalLabelsUserNameKey,
-                        update_columns: [],
-                      },
-                    },
-                  },
-            ),
-          },
-        },
+        obj: journalEntryInsert(values),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["journal_entries"] });

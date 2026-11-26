@@ -1,0 +1,3182 @@
+{
+  "schemaVersion": 1,
+  "platform": "web",
+  "captureProfile": {
+    "version": 1,
+    "fixtureVersion": 1,
+    "fixtureDate": "2026-11-17",
+    "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+    "browser": "141.0.7390.37",
+    "origin": "http://localhost:5173",
+    "playwright": "1.56.1",
+    "platform": "darwin",
+    "font": "@fontsource-variable/inter@5.3.0",
+    "locale": "en-US",
+    "timeZone": "UTC",
+    "deviceScaleFactor": 1,
+    "viewports": {
+      "desktop": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mobile": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  },
+  "screenshots": [
+    {
+      "id": "desktop-public-auth-signin",
+      "title": "Public sign-in: email OTP request",
+      "file": "screenshots/desktop-public-auth-signin.png",
+      "workflow": "desktop-public-auth",
+      "capturedAt": "2026-11-17T14:20:24.527Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "9a44970b8909e3d93ac74568897e149138eb22e02d618b47ef4d8448ca8b3172",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-public-auth-signup",
+      "title": "Public sign-up: display name and email",
+      "file": "screenshots/desktop-public-auth-signup.png",
+      "workflow": "desktop-public-auth",
+      "capturedAt": "2026-11-17T14:20:24.929Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "fd1e8c556a3182ce736fc538f863ef34e9c0d5cef16cf6fe56b6c00b219f1b83",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-today-root",
+      "title": "Today: desktop section root",
+      "file": "screenshots/desktop-root-today-root.png",
+      "workflow": "desktop-root-today",
+      "capturedAt": "2026-11-17T14:22:21.755Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "03baedf8b8ec94460a1b5a96691821a1b3d6ed3a18614359fc9b87b6ce0d7fe7",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-sessions-root",
+      "title": "Sessions: desktop section root",
+      "file": "screenshots/desktop-root-sessions-root.png",
+      "workflow": "desktop-root-sessions",
+      "capturedAt": "2026-11-17T14:34:15.422Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "315f594f0b884b9517bc519e3afc8169b5eb666309afc277346ec03c2c666216",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-workouts-root",
+      "title": "Workouts: desktop section root",
+      "file": "screenshots/desktop-root-workouts-root.png",
+      "workflow": "desktop-root-workouts",
+      "capturedAt": "2026-11-17T14:29:51.179Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "0756d5086576747c7c560815cdc4466af50ac2de971f9f3a658d5920cab30bde",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-exercises-root",
+      "title": "Exercises: desktop section root",
+      "file": "screenshots/desktop-root-exercises-root.png",
+      "workflow": "desktop-root-exercises",
+      "capturedAt": "2026-11-17T14:22:26.748Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "653a6481c862c6035dd25d940333ccc003948ca80857319a50c0cdbe7a8193c4",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-log-root",
+      "title": "Nutrition log: desktop section root",
+      "file": "screenshots/desktop-root-log-root.png",
+      "workflow": "desktop-root-log",
+      "capturedAt": "2026-11-17T14:22:27.878Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "395533219fc663afd30ac4e6df94673ce22097d2ac9543944f981526ce2d7e72",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-plans-root",
+      "title": "Plans: desktop section root",
+      "file": "screenshots/desktop-root-plans-root.png",
+      "workflow": "desktop-root-plans",
+      "capturedAt": "2026-11-17T14:22:29.242Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "55377cceeb0f1f84075a1cb8b9a44cda99b067094aeee41d56862e495d6eda95",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-foods-root",
+      "title": "Foods: desktop section root",
+      "file": "screenshots/desktop-root-foods-root.png",
+      "workflow": "desktop-root-foods",
+      "capturedAt": "2026-11-17T14:22:30.611Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "dc3baf3f5fe7359d47f5ccbe40332a2a0568a10664858f0d26e251acc0108cca",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-meals-root",
+      "title": "Meals: desktop section root",
+      "file": "screenshots/desktop-root-meals-root.png",
+      "workflow": "desktop-root-meals",
+      "capturedAt": "2026-11-17T14:22:31.992Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "0cbf8a2d1dfd5de9c9e196afd05afa35509267b4ccd110f8c01efc4f87e2260d",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-muscles-root",
+      "title": "Muscles: desktop section root",
+      "file": "screenshots/desktop-root-muscles-root.png",
+      "workflow": "desktop-root-muscles",
+      "capturedAt": "2026-11-17T14:22:33.383Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "82bf11a20745cbeea7631b237c74cf8c99bbb16bf7f06c71b454d1776057f568",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-strength-root",
+      "title": "Strength: desktop section root",
+      "file": "screenshots/desktop-root-strength-root.png",
+      "workflow": "desktop-root-strength",
+      "capturedAt": "2026-11-17T14:22:34.778Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "5bf7f5ee3ea1bb1c35261cae8bde300c57a12de52740e8ad4eae550c59213298",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-body-root",
+      "title": "Body: desktop section root",
+      "file": "screenshots/desktop-root-body-root.png",
+      "workflow": "desktop-root-body",
+      "capturedAt": "2026-11-17T14:22:36.464Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "5a517a70b85dff16fe24eb31e109aec34a599d460673620528be49c388b1bc9a",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-energy-root",
+      "title": "Energy: desktop section root",
+      "file": "screenshots/desktop-root-energy-root.png",
+      "workflow": "desktop-root-energy",
+      "capturedAt": "2026-11-17T14:22:38.182Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "0e6862691d4fd4eceb60aac2f878482c5853b3bb002a8c0aebceda516b2836c4",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-journal-root",
+      "title": "Journal: desktop section root",
+      "file": "screenshots/desktop-root-journal-root.png",
+      "workflow": "desktop-root-journal",
+      "capturedAt": "2026-11-17T14:26:20.619Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "8dc6605d44dd004ee25299baf030afde15f85c1483c923f388640a16c950c17c",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-root-account-root",
+      "title": "Account: desktop section root",
+      "file": "screenshots/desktop-root-account-root.png",
+      "workflow": "desktop-root-account",
+      "capturedAt": "2026-11-17T14:34:30.920Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "843eba3b183b1a6bd1ca0e9b5470e79ae3697e823ad14a94d0c6b1d4d974c3cb",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-session-before",
+      "title": "Session: inline next-set controls and earlier history",
+      "file": "screenshots/desktop-session-before.png",
+      "workflow": "desktop-session",
+      "capturedAt": "2026-11-17T14:34:32.389Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "6be54f9164e463096d06b2f38d1b92aff8446462449bbc1c166508ae4eb8d083",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-session-logged",
+      "title": "Session: saved set and running rest timer",
+      "file": "screenshots/desktop-session-logged.png",
+      "workflow": "desktop-session",
+      "capturedAt": "2026-11-17T14:34:32.743Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "a77203d07fec6890482061d8deeb9a39665b1941dae58e147d93943c351c4f29",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-session-today",
+      "title": "Today: the session's rest timer remains available",
+      "file": "screenshots/desktop-session-today.png",
+      "workflow": "desktop-session",
+      "capturedAt": "2026-11-17T14:26:24.203Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "07a3f1b6e301541b07cfcfe7a43580c6518d3452f29f28c5d320a0bb8ab7f477",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-session-returned",
+      "title": "Session: returned from Today and skipped the rest",
+      "file": "screenshots/desktop-session-returned.png",
+      "workflow": "desktop-session",
+      "capturedAt": "2026-11-17T14:26:24.540Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "7f623872881394a99f76a68ec00bb7b7dad553e9ceeced0d6487c1b153923a4c",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-plan-log-before",
+      "title": "Nutrition: planned breakfast beside existing intake",
+      "file": "screenshots/desktop-plan-log-before.png",
+      "workflow": "desktop-plan-log",
+      "capturedAt": "2026-11-17T14:30:08.929Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "395533219fc663afd30ac4e6df94673ce22097d2ac9543944f981526ce2d7e72",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-plan-log-confirm",
+      "title": "Nutrition: confirmation before appending planned intake",
+      "file": "screenshots/desktop-plan-log-confirm.png",
+      "workflow": "desktop-plan-log",
+      "capturedAt": "2026-11-17T14:30:09.261Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "8519c55227bb0ba48dcdb0f0bc118c9297c0191ee02a885ec2889e9d65514b73",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-plan-log-logged",
+      "title": "Nutrition: appended breakfast, with its planned slot still available",
+      "file": "screenshots/desktop-plan-log-logged.png",
+      "workflow": "desktop-plan-log",
+      "capturedAt": "2026-11-17T14:30:09.628Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "7c7a4fef6a5072326ea5b0ebe08d963bf8f6bda352e3a983f876e9a623dca8a9",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-new",
+      "title": "Journal: blank create form",
+      "file": "screenshots/desktop-journal-crud-new.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:30:11.088Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "588b4ffee2b2263f52b76bea842dbeec078bec064ea2b25f109c369bf4ff55a5",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-filled",
+      "title": "Journal: completed Markdown form and responsive Save actions",
+      "file": "screenshots/desktop-journal-crud-filled.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:34:37.464Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "96e79b63435d84055d401b614b598696eec343de302f7244f41753f831b5f247",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-created",
+      "title": "Journal: saved entry with rendered Markdown",
+      "file": "screenshots/desktop-journal-crud-created.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:34:37.807Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "6ff94a020fa6764a046b30ea5022ae74cfe56362767ae2aa5a1e3f41d1a003b8",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-edit",
+      "title": "Journal: edit form",
+      "file": "screenshots/desktop-journal-crud-edit.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:34:38.481Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "1bd5f6fffed3a61e3db5a73ac2f78996aff90a60fd7ccd580c980c7478a13d7f",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-updated",
+      "title": "Journal: updated entry",
+      "file": "screenshots/desktop-journal-crud-updated.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:34:39.069Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "39adc61111efe5458a6ca08a77317405c1836ca1080f0e792309e5f91ec2913c",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-confirm",
+      "title": "Journal: destructive confirmation",
+      "file": "screenshots/desktop-journal-crud-confirm.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:34:39.436Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "bd63b47590f9089c4c857f523b6dd395d1f68c6fb2466c74fdc6491fb285a890",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-journal-crud-deleted",
+      "title": "Journal: returned to surviving entries after deletion",
+      "file": "screenshots/desktop-journal-crud-deleted.png",
+      "workflow": "desktop-journal-crud",
+      "capturedAt": "2026-11-17T14:34:39.797Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "bc403cf7c28eb70da058b7330a67e228aeb718f2dd642f1694ff5ec98bb9b16f",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-appearance-light",
+      "title": "Account: Light appearance selected",
+      "file": "screenshots/desktop-appearance-light.png",
+      "workflow": "desktop-appearance",
+      "capturedAt": "2026-11-17T14:34:41.449Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "494d894efb0ae87fb93aaa4144631e78442a44a8386c78641728bccb98dfd538",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-appearance-today",
+      "title": "Today: Light appearance persists across navigation",
+      "file": "screenshots/desktop-appearance-today.png",
+      "workflow": "desktop-appearance",
+      "capturedAt": "2026-11-17T14:34:43.059Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "b599036c065c829b456883c1414131c7c02c0a756ac33bd5e872d0326b960cbe",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-appearance-dark",
+      "title": "Account: Dark appearance restored",
+      "file": "screenshots/desktop-appearance-dark.png",
+      "workflow": "desktop-appearance",
+      "capturedAt": "2026-11-17T14:34:44.465Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "843eba3b183b1a6bd1ca0e9b5470e79ae3697e823ad14a94d0c6b1d4d974c3cb",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-public-auth-signin",
+      "title": "Public sign-in: email OTP request",
+      "file": "screenshots/mobile-public-auth-signin.png",
+      "workflow": "mobile-public-auth",
+      "capturedAt": "2026-11-17T14:34:45.732Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "edae83732a2d1e6519bc673aa4d1daa60ad4af9f809d853b8f15285c719b8c53",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-public-auth-signup",
+      "title": "Public sign-up: display name and email",
+      "file": "screenshots/mobile-public-auth-signup.png",
+      "workflow": "mobile-public-auth",
+      "capturedAt": "2026-11-17T14:34:46.049Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "63dbfbb7a108e3992975dc3c0b3c83aae02ac9f8c994ed2d425737382a941e97",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-today-root",
+      "title": "Today: mobile section root",
+      "file": "screenshots/mobile-root-today-root.png",
+      "workflow": "mobile-root-today",
+      "capturedAt": "2026-11-17T14:34:47.485Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "69840779bb971cef4f43c131ac37aab03e322aa3f806b0c676f4b2db06f93c42",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-sessions-root",
+      "title": "Sessions: mobile section root",
+      "file": "screenshots/mobile-root-sessions-root.png",
+      "workflow": "mobile-root-sessions",
+      "capturedAt": "2026-11-17T14:34:48.551Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "fa1dd43a5f413485b359d0ecfeba9d4066f43f138a5e8722e7f45a8ba1ab606a",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-workouts-root",
+      "title": "Workouts: mobile section root",
+      "file": "screenshots/mobile-root-workouts-root.png",
+      "workflow": "mobile-root-workouts",
+      "capturedAt": "2026-11-17T14:34:49.619Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "66fbd2c0f65abbca3a2347b0846a88a569ff76e07775722dd7327319b5ca8ed6",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-exercises-root",
+      "title": "Exercises: mobile section root",
+      "file": "screenshots/mobile-root-exercises-root.png",
+      "workflow": "mobile-root-exercises",
+      "capturedAt": "2026-11-17T14:34:50.852Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "c6f6c3059beaa581003383a48c86227c30481a1c203d2f5ffb7ac933551b91fd",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-log-root",
+      "title": "Nutrition log: mobile section root",
+      "file": "screenshots/mobile-root-log-root.png",
+      "workflow": "mobile-root-log",
+      "capturedAt": "2026-11-17T14:34:51.951Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "b4edf0747df10975620502bcfa6026b12dbdeec9c02acf2a849a930fb27e7b68",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-plans-root",
+      "title": "Plans: mobile section root",
+      "file": "screenshots/mobile-root-plans-root.png",
+      "workflow": "mobile-root-plans",
+      "capturedAt": "2026-11-17T14:34:53.034Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "d2ca9478da45c2799effd9a6af7bdb467e02ce82ccc43d55608eecb62fc23d3b",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-foods-root",
+      "title": "Foods: mobile section root",
+      "file": "screenshots/mobile-root-foods-root.png",
+      "workflow": "mobile-root-foods",
+      "capturedAt": "2026-11-17T14:34:54.120Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "c9a48becb21ff039c8829fbbcaf9c7c39bf4739e4f70e16da880290132038731",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-meals-root",
+      "title": "Meals: mobile section root",
+      "file": "screenshots/mobile-root-meals-root.png",
+      "workflow": "mobile-root-meals",
+      "capturedAt": "2026-11-17T14:34:55.201Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "1127af129058ef0d7aa8975564f841d52ef5fe495a263f88f0c9dffe43a597e2",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-muscles-root",
+      "title": "Muscles: mobile section root",
+      "file": "screenshots/mobile-root-muscles-root.png",
+      "workflow": "mobile-root-muscles",
+      "capturedAt": "2026-11-17T14:34:56.569Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "8f43d6a9ebe3b3b74764bf53124d1c4b807b163c3f7a1e07158c3235e37a1fa6",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-strength-root",
+      "title": "Strength: mobile section root",
+      "file": "screenshots/mobile-root-strength-root.png",
+      "workflow": "mobile-root-strength",
+      "capturedAt": "2026-11-17T14:34:57.637Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "5f2f1cffa236d5f4359f89a2888f8db66ca19bcbe120106d26db4d416d1c9ecf",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-body-root",
+      "title": "Body: mobile section root",
+      "file": "screenshots/mobile-root-body-root.png",
+      "workflow": "mobile-root-body",
+      "capturedAt": "2026-11-17T14:34:58.968Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "7641ac0e3804d2ca900272e51947158ef6ab7e76a21c695f80e67b6607ab3874",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-energy-root",
+      "title": "Energy: mobile section root",
+      "file": "screenshots/mobile-root-energy-root.png",
+      "workflow": "mobile-root-energy",
+      "capturedAt": "2026-11-17T14:35:00.352Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "fa5eae505c09e792a5bdf0a1ebfb9b1889854116a41567b3b8a92872edcc560b",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-journal-root",
+      "title": "Journal: mobile section root",
+      "file": "screenshots/mobile-root-journal-root.png",
+      "workflow": "mobile-root-journal",
+      "capturedAt": "2026-11-17T14:35:01.415Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "41b11782d7a088ca2b6382357dd1647a8a3528106d14c033c67d51e9ae1c86e5",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-root-account-root",
+      "title": "Account: mobile section root",
+      "file": "screenshots/mobile-root-account-root.png",
+      "workflow": "mobile-root-account",
+      "capturedAt": "2026-11-17T14:35:02.485Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "ffcf0fc4fbfba22545f6e0ce1882ebf388f18192be6459251f90d16671a4a84a",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-session-before",
+      "title": "Session: inline next-set controls and earlier history",
+      "file": "screenshots/mobile-session-before.png",
+      "workflow": "mobile-session",
+      "capturedAt": "2026-11-17T14:35:03.884Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "659986d4d8d1d8f4e887088a0f191cac2694a0fd9394acb42965d1b2ebc380ea",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-session-logged",
+      "title": "Session: saved set and running rest timer",
+      "file": "screenshots/mobile-session-logged.png",
+      "workflow": "mobile-session",
+      "capturedAt": "2026-11-17T14:35:04.468Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "59583fe5f9c1ed08cf972a394997d2f051a041c7c320681e8d4754b797573af1",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-session-today",
+      "title": "Today: the session's rest timer remains available",
+      "file": "screenshots/mobile-session-today.png",
+      "workflow": "mobile-session",
+      "capturedAt": "2026-11-17T14:35:04.834Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "abe206fb619656ab24c4313caf8b050d0f562021175b7db318718182d0b0ba50",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-session-returned",
+      "title": "Session: returned from Today and skipped the rest",
+      "file": "screenshots/mobile-session-returned.png",
+      "workflow": "mobile-session",
+      "capturedAt": "2026-11-17T14:35:05.417Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "bca9d268fbb8461d43e842228a5c04e0f03c86a2979ae8619e36eae7cf4d06d3",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-plan-log-before",
+      "title": "Nutrition: planned breakfast beside existing intake",
+      "file": "screenshots/mobile-plan-log-before.png",
+      "workflow": "mobile-plan-log",
+      "capturedAt": "2026-11-17T14:35:06.868Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "df107ef86435f84a2bbe31d768eabeb9a015ca3be775c7a9421bba2dfdbbc8df",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-plan-log-confirm",
+      "title": "Nutrition: confirmation before appending planned intake",
+      "file": "screenshots/mobile-plan-log-confirm.png",
+      "workflow": "mobile-plan-log",
+      "capturedAt": "2026-11-17T14:35:07.127Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "2a2ea3263553300d341dcac2402dd171faffbfe4f4dcb24a99f81d610452f499",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-plan-log-logged",
+      "title": "Nutrition: appended breakfast, with its planned slot still available",
+      "file": "screenshots/mobile-plan-log-logged.png",
+      "workflow": "mobile-plan-log",
+      "capturedAt": "2026-11-17T14:35:07.485Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "ecd95313ad14cbf4d43809d56bc396c7c9ae0349739dc755a999c157065826ae",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-new",
+      "title": "Journal: blank create form",
+      "file": "screenshots/mobile-journal-crud-new.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:08.583Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "dbb9d6b7d0e97007ccc4de8798e92b722bf3d8db7d9bed7659d3401ea2359211",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-filled",
+      "title": "Journal: completed Markdown form and responsive Save actions",
+      "file": "screenshots/mobile-journal-crud-filled.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:08.784Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "8d1ba6da63db4ce362304490e2db275a2433968918865044042355a6b6180ee0",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-created",
+      "title": "Journal: saved entry with rendered Markdown",
+      "file": "screenshots/mobile-journal-crud-created.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:09.106Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "6e9bf7f2760b8d001f02e8eaf5e4400f26486749057955fe3dce25985df5c78c",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-edit",
+      "title": "Journal: edit form",
+      "file": "screenshots/mobile-journal-crud-edit.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:09.450Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "304ca74f3c438be57b762e10c6119b95fb5ab8d142e0998da8bfe73b0ac6b59b",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-updated",
+      "title": "Journal: updated entry",
+      "file": "screenshots/mobile-journal-crud-updated.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:09.758Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "98df783deb812eda74b8f5f4197b6ec18190734263f654bf47813d522a1c6b48",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-confirm",
+      "title": "Journal: destructive confirmation",
+      "file": "screenshots/mobile-journal-crud-confirm.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:10.074Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "e8197d06fead1d237984697abc6a759801ec060843a243b185f4d11236fd3be5",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-journal-crud-deleted",
+      "title": "Journal: returned to surviving entries after deletion",
+      "file": "screenshots/mobile-journal-crud-deleted.png",
+      "workflow": "mobile-journal-crud",
+      "capturedAt": "2026-11-17T14:35:10.391Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "f2af1ff81116541baa8e019406f43f1ce0b6f37182a7912b210bb228d87f7a43",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-appearance-light",
+      "title": "Account: Light appearance selected",
+      "file": "screenshots/mobile-appearance-light.png",
+      "workflow": "mobile-appearance",
+      "capturedAt": "2026-11-17T14:35:11.484Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "306393d05d3c8e16936d4c2fe0dfe87015e19026ddedd2d96d32db6499a2103c",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-appearance-today",
+      "title": "Today: Light appearance persists across navigation",
+      "file": "screenshots/mobile-appearance-today.png",
+      "workflow": "mobile-appearance",
+      "capturedAt": "2026-11-17T14:35:12.544Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "c85380e113ebe7407cde0e64b73631acfba501934469342031458d47f3ba5c2b",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-appearance-dark",
+      "title": "Account: Dark appearance restored",
+      "file": "screenshots/mobile-appearance-dark.png",
+      "workflow": "mobile-appearance",
+      "capturedAt": "2026-11-17T14:35:13.650Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "ffcf0fc4fbfba22545f6e0ce1882ebf388f18192be6459251f90d16671a4a84a",
+      "captureProfile": {
+        "version": 1,
+        "fixtureVersion": 1,
+        "fixtureDate": "2026-11-17",
+        "clock": "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+        "browser": "141.0.7390.37",
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "id": "desktop-public-auth",
+      "title": "Inspect public sign-in and sign-up · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /signin"
+      ],
+      "checks": [
+        "Public authentication screens render; screenshots contain no OTP or credentials"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:12.300Z"
+    },
+    {
+      "id": "desktop-root-today",
+      "title": "Today · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /today"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:14.296Z"
+    },
+    {
+      "id": "desktop-root-sessions",
+      "title": "Sessions · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /train/sessions"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:15.425Z"
+    },
+    {
+      "id": "desktop-root-workouts",
+      "title": "Workouts · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /train/workouts"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:16.539Z"
+    },
+    {
+      "id": "desktop-root-exercises",
+      "title": "Exercises · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /train/exercises"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:17.874Z"
+    },
+    {
+      "id": "desktop-root-log",
+      "title": "Nutrition log · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:19.005Z"
+    },
+    {
+      "id": "desktop-root-plans",
+      "title": "Plans · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/plans"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:20.114Z"
+    },
+    {
+      "id": "desktop-root-foods",
+      "title": "Foods · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/foods"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:21.220Z"
+    },
+    {
+      "id": "desktop-root-meals",
+      "title": "Meals · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/meals"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:22.334Z"
+    },
+    {
+      "id": "desktop-root-muscles",
+      "title": "Muscles · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /progress/muscles"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:23.692Z"
+    },
+    {
+      "id": "desktop-root-strength",
+      "title": "Strength · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /progress/strength"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:24.783Z"
+    },
+    {
+      "id": "desktop-root-body",
+      "title": "Body · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /progress/body"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:26.515Z"
+    },
+    {
+      "id": "desktop-root-energy",
+      "title": "Energy · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /progress/energy"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:28.392Z"
+    },
+    {
+      "id": "desktop-root-journal",
+      "title": "Journal · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /me/journal"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:29.816Z"
+    },
+    {
+      "id": "desktop-root-account",
+      "title": "Account · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /me/account"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:30.923Z"
+    },
+    {
+      "id": "desktop-session",
+      "title": "Log a strength set and use the cross-area rest timer · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /train/sessions/01a1e9ee-06e6-7536-9187-4d53b0693ed3",
+        "Log the prefilled second working set",
+        "Extend rest, switch to Today, and return using the timer link"
+      ],
+      "checks": [
+        "A fresh backend read contains exactly two Bench press sets",
+        "The timer survived area navigation, linked to the originating session, and cleared on Skip"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:33.532Z"
+    },
+    {
+      "id": "desktop-plan-log",
+      "title": "Append a planned slot beside existing intake · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/log/2026-11-17",
+        "Log the planned 07:15 slot and inspect the append confirmation"
+      ],
+      "checks": [
+        "A fresh backend read contains three additional food snapshots and one additional logged meal",
+        "The planned slot remains visible and can be logged again"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:35.727Z"
+    },
+    {
+      "id": "desktop-journal-crud",
+      "title": "Create, edit and delete a journal entry · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /me/journal/new",
+        "Write a Markdown journal entry and save it",
+        "Edit the entry and save the changed title",
+        "Open the editor, confirm Delete, and return to the journal list"
+      ],
+      "checks": [
+        "The create form navigated to a detail route and a fresh backend read confirms its title",
+        "A fresh backend read confirms the edited title",
+        "A fresh backend read confirms deletion and the deleted detail is no longer displayed"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:39.805Z"
+    },
+    {
+      "id": "desktop-appearance",
+      "title": "Change appearance and return to Today · desktop",
+      "status": "passed",
+      "steps": [
+        "Open /me/account",
+        "Select Light, inspect Today, then restore Dark",
+        "Open /today",
+        "Open /me/account"
+      ],
+      "checks": [
+        "The real theme control changed the document appearance and persisted across navigation"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:44.467Z"
+    },
+    {
+      "id": "mobile-public-auth",
+      "title": "Inspect public sign-in and sign-up · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /signin"
+      ],
+      "checks": [
+        "Public authentication screens render; screenshots contain no OTP or credentials"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:46.052Z"
+    },
+    {
+      "id": "mobile-root-today",
+      "title": "Today · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /today"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:47.487Z"
+    },
+    {
+      "id": "mobile-root-sessions",
+      "title": "Sessions · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /train/sessions"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:48.554Z"
+    },
+    {
+      "id": "mobile-root-workouts",
+      "title": "Workouts · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /train/workouts"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:49.621Z"
+    },
+    {
+      "id": "mobile-root-exercises",
+      "title": "Exercises · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /train/exercises"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:50.866Z"
+    },
+    {
+      "id": "mobile-root-log",
+      "title": "Nutrition log · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:51.954Z"
+    },
+    {
+      "id": "mobile-root-plans",
+      "title": "Plans · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/plans"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:53.038Z"
+    },
+    {
+      "id": "mobile-root-foods",
+      "title": "Foods · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/foods"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:54.124Z"
+    },
+    {
+      "id": "mobile-root-meals",
+      "title": "Meals · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/meals"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:55.203Z"
+    },
+    {
+      "id": "mobile-root-muscles",
+      "title": "Muscles · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /progress/muscles"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:56.572Z"
+    },
+    {
+      "id": "mobile-root-strength",
+      "title": "Strength · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /progress/strength"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:57.640Z"
+    },
+    {
+      "id": "mobile-root-body",
+      "title": "Body · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /progress/body"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:34:58.971Z"
+    },
+    {
+      "id": "mobile-root-energy",
+      "title": "Energy · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /progress/energy"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:00.354Z"
+    },
+    {
+      "id": "mobile-root-journal",
+      "title": "Journal · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /me/journal"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:01.418Z"
+    },
+    {
+      "id": "mobile-root-account",
+      "title": "Account · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /me/account"
+      ],
+      "checks": [
+        "The real route and its data requests settled without browser or GraphQL errors"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:02.488Z"
+    },
+    {
+      "id": "mobile-session",
+      "title": "Log a strength set and use the cross-area rest timer · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /train/sessions/01a1e9ee-88b9-73cf-b5e7-86b27b5a6bc4",
+        "Log the prefilled second working set",
+        "Extend rest, switch to Today, and return using the timer link"
+      ],
+      "checks": [
+        "A fresh backend read contains exactly two Bench press sets",
+        "The timer survived area navigation, linked to the originating session, and cleared on Skip"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:05.427Z"
+    },
+    {
+      "id": "mobile-plan-log",
+      "title": "Append a planned slot beside existing intake · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /nutrition/log/2026-11-17",
+        "Log the planned 07:15 slot and inspect the append confirmation"
+      ],
+      "checks": [
+        "A fresh backend read contains three additional food snapshots and one additional logged meal",
+        "The planned slot remains visible and can be logged again"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:07.490Z"
+    },
+    {
+      "id": "mobile-journal-crud",
+      "title": "Create, edit and delete a journal entry · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /me/journal/new",
+        "Write a Markdown journal entry and save it",
+        "Edit the entry and save the changed title",
+        "Open the editor, confirm Delete, and return to the journal list"
+      ],
+      "checks": [
+        "The create form navigated to a detail route and a fresh backend read confirms its title",
+        "A fresh backend read confirms the edited title",
+        "A fresh backend read confirms deletion and the deleted detail is no longer displayed"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:10.394Z"
+    },
+    {
+      "id": "mobile-appearance",
+      "title": "Change appearance and return to Today · mobile",
+      "status": "passed",
+      "steps": [
+        "Open /me/account",
+        "Select Light, inspect Today, then restore Dark",
+        "Open /today",
+        "Open /me/account"
+      ],
+      "checks": [
+        "The real theme control changed the document appearance and persisted across navigation"
+      ],
+      "source": {
+        "revision": "24c1e1b7167fad8c555db19618a69fdb9cfa80ee",
+        "dirty": true
+      },
+      "verifiedAt": "2026-11-17T14:35:13.653Z"
+    }
+  ],
+  "knownIssues": [],
+  "lastRun": {
+    "status": "passed",
+    "group": "all",
+    "profile": "all",
+    "startedAt": "2026-11-17T14:34:10.265Z",
+    "finishedAt": "2026-11-17T14:35:13.670Z"
+  }
+}

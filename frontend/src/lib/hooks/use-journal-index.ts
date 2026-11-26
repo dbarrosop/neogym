@@ -54,9 +54,11 @@ export function useJournalEntries(activeLabels: string[]) {
   // AND semantics: each label gets its own clause requiring at least one
   // matching join row. Hasura's array-relationship filters are existential,
   // so combining them with _and means every selected label must be present.
-  const where: JournalEntries_Bool_Exp | undefined =
+  // Explicit match-all also works with Constellation's variable resolver, which
+  // currently rejects an omitted $where rather than treating it as null.
+  const where: JournalEntries_Bool_Exp =
     activeLabels.length === 0
-      ? undefined
+      ? {}
       : {
           _and: activeLabels.map((labelId) => ({
             journalEntryLabels: { labelId: { _eq: labelId } },
@@ -68,7 +70,7 @@ export function useJournalEntries(activeLabels: string[]) {
       gqlRequest(JournalEntriesQuery, {
         limit: PAGE_SIZE,
         offset: pageParam,
-        ...(where ? { where } : {}),
+        where,
       }),
     initialPageParam: 0 as number,
     getNextPageParam: (lastPage, allPages): number | undefined => {

@@ -10,7 +10,7 @@ NeoGym — a TanStack Start (React 19 + Vite 8 + Nitro) frontend talking to an N
 
 ```
 .
-├── flake.nix          # Nix devshell — provides bun + biome + constellation + XcodeGen on Darwin
+├── flake.nix          # Nix devshell — provides bun + biome + python3 + constellation + XcodeGen on Darwin
 ├── ios/NeoGym/        # SwiftUI app shell, XcodeGen spec, and host-testable NeoGymKit package
 ├── frontend/          # TanStack Start app (Vite default port 5173, bound to 0.0.0.0 for LAN/mobile)
 │   ├── src/
@@ -51,12 +51,24 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun`, `biome`, `wrangler`, `constellation` (from `nixops.packages`), and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, `wrangler`, `python3`, `constellation` (from `nixops.packages`), and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
 nix develop ../ --command bun run <script>
 nix develop ../ --command bunx <pkg>
+```
+
+The devshell's `python3` is pinned through `flake.lock` and runs the gallery renderer regressions included in `bun run check`. Run standalone **web gallery** Python tooling/tests through the devshell too (`nix develop . --command python3 ...` from the repository root), not a host interpreter. This does not migrate the native capture/release commands documented under `docs/ios/` and `ios/NeoGym/`.
+
+Keep the shared `tools/gallery.py` renderer and native Python scripts compatible with Python 3.9. On macOS, `/usr/bin/python3` is an `xcrun` shim: inside `nix develop` it can select Nix's Python too, even with `PYTHONPATH` unset. An absolute `/usr/bin/python3` path alone is therefore not a Python 3.9 check. Outside the devshell it currently supplies native tooling's Python 3.9 floor.
+
+After shared-renderer or native-script changes, run these additional offline compatibility checks from the repository root in a **fresh macOS terminal outside all Nix/direnv shells**. The version assertion must pass; if the host interpreter changes, explicitly select and verify a Python 3.9 interpreter instead. These checks supplement the Nix gates; they are not part of `bun run check` and do not require macOS system Python on Linux.
+
+```sh
+/usr/bin/python3 -c 'import os, sys; assert not os.environ.get("IN_NIX_SHELL"), "Exit the Nix shell first"; assert sys.version_info[:2] == (3, 9), sys.version; print(sys.version)' &&
+/usr/bin/python3 -m unittest discover -s tools -p 'test_web_gallery.py' &&
+/usr/bin/python3 -m unittest discover -s ios/NeoGym/Scripts -p 'test_*.py'
 ```
 
 **Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix. If XcodeGen is unavailable in the pinned Nixpkgs on a Darwin host, use the documented Homebrew fallback (`brew install xcodegen`) but keep `ios/NeoGym/project.yml` as the source of truth and do not commit generated `.xcodeproj` output.
@@ -677,6 +689,49 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
   - Editors, states and charts: Edit workout, journal entry, measurement and energy forms and the cardio entry sheet use the same grouped rows as the Nutrition editors (`App/Components/FormRows.swift`); workout and journal labels share `LabelChipsEditor`. Workout exercises reorder by long-press (the design's drag handle is not built). `AppEmptyStateView` draws the States board's empty state (accent-soft icon tile, optional primary action, no card at section level), and deletes confirm with an action-sheet `confirmationDialog`. Chart value axes use NeoGymKit `ChartAxisScale` (three rounded, unit-less labels in secondary text, zero kept for counts/energy/net; two measures on left and right axes start at the same height via `ChartAxisScale.startAligned`, with less round labels), lines join across missing days, every reading has a dot (smaller past 31 points), and a partial period joins with a dashed segment to an open dot.
 - **Widgets & Watch: migrated** (the Design canvas's *Widgets & Watch* page). iPhone Balance widget in all five families (`Widgets/EnergyBalanceWidget.swift`), the rest timer Live Activity with Rest over and App Intent buttons (`Widgets/RestTimerLiveActivityWidget.swift`, `Shared/RestTimerIntents.swift`), the watch complication's rectangular and circular families (`WatchWidgets/`), and the watch app's Today / End of day / Account pages with message-layout states (`Watch/`). Formatting is NeoGymKit `EnergyBalanceDisplay`; shared glyph/bar/watch palette are in `WidgetUI/`.
 - Update this list as areas migrate.
+
+## Visual galleries
+
+The [web guide](docs/web/README.md) and [iPhone guide](docs/ios/README.md) are
+static documentation, not app routes or production build outputs. Their generated
+`gallery.html` pages work through `file://` with adjacent `screenshots/`. Shared
+HTML/CSS/JS and frame rendering live in `tools/gallery.py`; the iOS adapter keeps
+its own layout/copy and original 1206 × 2622 defaults. Shared renderer changes
+must preserve the current iOS HTML byte-for-byte unless explicitly redesigning it;
+never refresh iOS images/provenance as a side effect of web work.
+
+The web capture lives in `frontend/scripts/gallery/`: `catalog.json` is the
+canonical profile/root/frame registry; Playwright drives the normal frontend,
+creates a new local OTP account per profile through MailHog, and seeds only that
+user's private fixtures through user-role GraphQL. There is no production demo or
+auth bypass, admin secret, database reset, public-data write or stored browser
+session. Backend URLs are fixed local endpoints; browser network calls are
+allowlisted. `bun run gallery:serve` forces local Nhost and uses port 5173; browse
+`http://localhost:5173`, the origin allowed by local Constellation CORS. An
+arbitrary capture port/hostname will fail CORS; do not bypass browser security to
+hide it. Disposable accounts/fixtures remain in the local DB after capture.
+
+The initial `docs/web/` baseline has 66 viewport PNGs / 38 recorded walkthroughs /
+42 visual rows, covering all 14 web roots at 1440 × 1000 and 390 × 844 plus
+representative strength/rest, planned-slot, Journal CRUD and appearance flows.
+Mobile is Chromium emulation, not Safari/device validation. Auth/server/browser
+clocks remain real and fixtures are relative to the recorded UTC date; en-US,
+UTC, scale 1, reduced motion, fresh contexts and a pinned local Inter font are
+explicit. Do not claim frozen dates or byte-identical recaptures. A changed
+profile/date/browser/font requires a new reviewed complete baseline rather than
+mixing evidence. Same-profile partial refreshes preserve unchanged images,
+provenance and order; failed latest attempts and incomplete catalogs cannot pass
+publication. Failure diagnostics stay in ignored scratch space, never docs.
+
+See [web capture instructions](docs/web/capture.md) for opt-in browser installation,
+local setup and scratch-first publication. `tools/web-gallery.py validate|render`
+works offline and checks complete retained evidence; it does not rerun workflows.
+Run both Python tooling suites plus frontend `bun run check` after tooling changes.
+The first web capture also exposed two Journal/Constellation compatibility cases:
+`useJournalEntries` sends explicit `where: {}` for an unfiltered list, and
+`journalEntryInsert` omits an empty nested labels relationship. Preserve their
+regression tests; do not globally rewrite omitted GraphQL variables, whose defaults
+can have different semantics.
 
 ## Conventions
 
