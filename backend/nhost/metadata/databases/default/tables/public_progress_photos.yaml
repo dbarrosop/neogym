@@ -5,6 +5,8 @@ configuration:
   column_config:
     created_at:
       custom_name: createdAt
+    label_value:
+      custom_name: labelValue
     taken_on:
       custom_name: takenOn
     updated_at:
@@ -13,6 +15,7 @@ configuration:
       custom_name: userId
   custom_column_names:
     created_at: createdAt
+    label_value: labelValue
     taken_on: takenOn
     updated_at: updatedAt
     user_id: userId
@@ -28,9 +31,9 @@ configuration:
     update: updateProgressPhotos
     update_by_pk: updateProgressPhoto
 object_relationships:
-  - name: angle
+  - name: label
     using:
-      foreign_key_constraint_on: label
+      foreign_key_constraint_on: label_value
   - name: file
     using:
       foreign_key_constraint_on: file_id
@@ -44,7 +47,7 @@ insert_permissions:
       set:
         user_id: x-hasura-user-id
       columns:
-        - label
+        - label_value
         - taken_on
 select_permissions:
   - role: user
@@ -52,7 +55,7 @@ select_permissions:
       columns:
         - id
         - user_id
-        - label
+        - label_value
         - taken_on
         - created_at
         - updated_at
@@ -63,7 +66,7 @@ update_permissions:
   - role: user
     permission:
       columns:
-        - label
+        - label_value
         - taken_on
       filter:
         user_id:

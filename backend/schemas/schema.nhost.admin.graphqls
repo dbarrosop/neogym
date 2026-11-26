@@ -3240,7 +3240,7 @@ enum progressPhoto_select_column {
   """
   column name
   """
-  label
+  labelValue
   """
   column name
   """
@@ -3273,7 +3273,7 @@ enum progressPhoto_update_column {
   """
   column name
   """
-  label
+  labelValue
   """
   column name
   """
@@ -14903,7 +14903,7 @@ columns and relationships of "progress_photos"
 type progressPhoto {
   id: uuid!
   userId: uuid
-  label: progressPhotoLabel_enum!
+  labelValue: progressPhotoLabel_enum!
   takenOn: date!
   createdAt: timestamptz!
   updatedAt: timestamptz!
@@ -14911,11 +14911,11 @@ type progressPhoto {
   """
   An object relationship
   """
-  angle: progressPhotoLabel!
+  file: files
   """
   An object relationship
   """
-  file: files
+  label: progressPhotoLabel!
   """
   An object relationship
   """
@@ -32560,13 +32560,13 @@ input progressPhoto_bool_exp {
   _or: [progressPhoto_bool_exp!]
   id: uuid_comparison_exp
   userId: uuid_comparison_exp
-  label: progressPhotoLabel_enum_comparison_exp
+  labelValue: progressPhotoLabel_enum_comparison_exp
   takenOn: date_comparison_exp
   createdAt: timestamptz_comparison_exp
   updatedAt: timestamptz_comparison_exp
   file_id: uuid_comparison_exp
-  angle: progressPhotoLabel_bool_exp
   file: files_bool_exp
+  label: progressPhotoLabel_bool_exp
   user: users_bool_exp
 }
 """
@@ -32575,13 +32575,13 @@ input type for inserting data into table "progress_photos"
 input progressPhoto_insert_input {
   id: uuid
   userId: uuid
-  label: progressPhotoLabel_enum
+  labelValue: progressPhotoLabel_enum
   takenOn: date
   createdAt: timestamptz
   updatedAt: timestamptz
   file_id: uuid
-  angle: progressPhotoLabel_obj_rel_insert_input
   file: files_obj_rel_insert_input
+  label: progressPhotoLabel_obj_rel_insert_input
   user: users_obj_rel_insert_input
 }
 """
@@ -32608,13 +32608,13 @@ Ordering options when selecting data from "progress_photos".
 input progressPhoto_order_by {
   id: order_by
   userId: order_by
-  label: order_by
+  labelValue: order_by
   takenOn: order_by
   createdAt: order_by
   updatedAt: order_by
   file_id: order_by
-  angle: progressPhotoLabel_order_by
   file: files_order_by
+  label: progressPhotoLabel_order_by
   user: users_order_by
 }
 """
@@ -32629,7 +32629,7 @@ input type for updating data in table "progress_photos"
 input progressPhoto_set_input {
   id: uuid
   userId: uuid
-  label: progressPhotoLabel_enum
+  labelValue: progressPhotoLabel_enum
   takenOn: date
   createdAt: timestamptz
   updatedAt: timestamptz
@@ -32654,7 +32654,7 @@ Initial value of the column from where the streaming should start
 input progressPhoto_stream_cursor_value_input {
   id: uuid
   userId: uuid
-  label: progressPhotoLabel_enum
+  labelValue: progressPhotoLabel_enum
   takenOn: date
   createdAt: timestamptz
   updatedAt: timestamptz

@@ -9069,13 +9069,13 @@ export enum Order_By {
 /** columns and relationships of "progress_photos" */
 export type ProgressPhoto = {
   __typename?: 'progressPhoto';
-  /** An object relationship */
-  angle: ProgressPhotoLabel;
   createdAt: Scalars['timestamptz']['output'];
   /** An object relationship */
   file?: Maybe<Files>;
   id: Scalars['uuid']['output'];
-  label: ProgressPhotoLabel_Enum;
+  /** An object relationship */
+  label: ProgressPhotoLabel;
+  labelValue: ProgressPhotoLabel_Enum;
   takenOn: Scalars['date']['output'];
   updatedAt: Scalars['timestamptz']['output'];
   userId?: Maybe<Scalars['uuid']['output']>;
@@ -9146,11 +9146,11 @@ export type ProgressPhoto_Bool_Exp = {
   _and?: InputMaybe<Array<ProgressPhoto_Bool_Exp>>;
   _not?: InputMaybe<ProgressPhoto_Bool_Exp>;
   _or?: InputMaybe<Array<ProgressPhoto_Bool_Exp>>;
-  angle?: InputMaybe<ProgressPhotoLabel_Bool_Exp>;
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   file?: InputMaybe<Files_Bool_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
-  label?: InputMaybe<ProgressPhotoLabel_Enum_Comparison_Exp>;
+  label?: InputMaybe<ProgressPhotoLabel_Bool_Exp>;
+  labelValue?: InputMaybe<ProgressPhotoLabel_Enum_Comparison_Exp>;
   takenOn?: InputMaybe<Date_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   userId?: InputMaybe<Uuid_Comparison_Exp>;
@@ -9167,7 +9167,7 @@ export enum ProgressPhoto_Constraint {
 /** input type for inserting data into table "progress_photos" */
 export type ProgressPhoto_Insert_Input = {
   file?: InputMaybe<Files_Obj_Rel_Insert_Input>;
-  label?: InputMaybe<ProgressPhotoLabel_Enum>;
+  labelValue?: InputMaybe<ProgressPhotoLabel_Enum>;
   takenOn?: InputMaybe<Scalars['date']['input']>;
 };
 
@@ -9196,11 +9196,11 @@ export type ProgressPhoto_On_Conflict = {
 
 /** Ordering options when selecting data from "progress_photos". */
 export type ProgressPhoto_Order_By = {
-  angle?: InputMaybe<ProgressPhotoLabel_Order_By>;
   createdAt?: InputMaybe<Order_By>;
   file?: InputMaybe<Files_Order_By>;
   id?: InputMaybe<Order_By>;
-  label?: InputMaybe<Order_By>;
+  label?: InputMaybe<ProgressPhotoLabel_Order_By>;
+  labelValue?: InputMaybe<Order_By>;
   takenOn?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   userId?: InputMaybe<Order_By>;
@@ -9218,7 +9218,7 @@ export enum ProgressPhoto_Select_Column {
   /** column name */
   Id = 'id',
   /** column name */
-  Label = 'label',
+  LabelValue = 'labelValue',
   /** column name */
   TakenOn = 'takenOn',
   /** column name */
@@ -9229,7 +9229,7 @@ export enum ProgressPhoto_Select_Column {
 
 /** input type for updating data in table "progress_photos" */
 export type ProgressPhoto_Set_Input = {
-  label?: InputMaybe<ProgressPhotoLabel_Enum>;
+  labelValue?: InputMaybe<ProgressPhotoLabel_Enum>;
   takenOn?: InputMaybe<Scalars['date']['input']>;
 };
 
@@ -9245,7 +9245,7 @@ export type ProgressPhoto_Stream_Cursor_Input = {
 export type ProgressPhoto_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
-  label?: InputMaybe<ProgressPhotoLabel_Enum>;
+  labelValue?: InputMaybe<ProgressPhotoLabel_Enum>;
   takenOn?: InputMaybe<Scalars['date']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   userId?: InputMaybe<Scalars['uuid']['input']>;
@@ -9254,7 +9254,7 @@ export type ProgressPhoto_Stream_Cursor_Value_Input = {
 /** update columns of table "progress_photos" */
 export enum ProgressPhoto_Update_Column {
   /** column name */
-  Label = 'label',
+  LabelValue = 'labelValue',
   /** column name */
   TakenOn = 'takenOn'
 }

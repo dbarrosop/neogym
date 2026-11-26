@@ -202,7 +202,7 @@ erDiagram
         uuid id PK
         uuid file_id FK, UK
         uuid user_id FK
-        text label FK
+        text label_value FK
         date taken_on
         timestamptz created_at
         timestamptz updated_at
@@ -213,7 +213,7 @@ erDiagram
     PROGRESS_PHOTO_LABELS ||--o{ PROGRESS_PHOTOS : "labels (RESTRICT delete)"
 ```
 
-`progress_photos` is the upload reservation: it assigns the UUID and stores the uploader, calendar date and admin label before an upload starts. `progress_photo_labels` is a Hasura enum table with a text key and optional comment; the FK still enforces allowed values in Postgres. `file_id` starts null and is a unique cascading FK to `storage.files.id`; when set, it must equal the reservation UUID. Storage initialization atomically sets `file_id` on the current matching reservation. GraphQL follows `file` without a second write from the client. Date and angle are not a uniqueness key. Account deletion nulls `user_id`, immediately revoking access; scheduled PostgreSQL jobs remove expired pending uploads and rows left by deleted uploaders. Storage's own queue handles byte removal after SQL deletion. See the [progress-photo API](progress-photos.md).
+`progress_photos` is the upload reservation: it assigns the UUID and stores the uploader, calendar date and admin label before an upload starts. `progress_photo_labels` is a Hasura enum table with a text key and optional comment; `progress_photos.label_value` references it and appears in GraphQL as `labelValue`, with `label` as the relationship. `file_id` starts null and is a unique cascading FK to `storage.files.id`; when set, it must equal the reservation UUID. Storage initialization atomically sets `file_id` on the current matching reservation. GraphQL follows `file` without a second write from the client. Date and angle are not a uniqueness key. Account deletion nulls `user_id`, immediately revoking access; scheduled PostgreSQL jobs remove expired pending uploads and rows left by deleted uploaders. Storage's own queue handles byte removal after SQL deletion. See the [progress-photo API](progress-photos.md).
 
 ## Nutrition
 
@@ -294,7 +294,7 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 | `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
 | `progress_photos.user_id` → `auth.users.id` | `ON DELETE SET NULL` | Account deletion hides the photo immediately; a `pg_cron` job removes the remaining rows. |
 | `progress_photos.file_id` → `storage.files.id` | `ON DELETE CASCADE` | Deleting the Storage file row removes its reservation; it does not prove the bytes are gone. |
-| `progress_photos.label` → `progress_photo_labels.value` | `ON DELETE RESTRICT` | A label cannot be deleted while a photo references it. |
+| `progress_photos.label_value` → `progress_photo_labels.value` | `ON DELETE RESTRICT` | A label cannot be deleted while a photo references it. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |

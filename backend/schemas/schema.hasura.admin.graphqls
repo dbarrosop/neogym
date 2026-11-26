@@ -3244,7 +3244,7 @@ enum progressPhoto_select_column {
   """
   column name
   """
-  label
+  labelValue
   """
   column name
   """
@@ -3277,7 +3277,7 @@ enum progressPhoto_update_column {
   """
   column name
   """
-  label
+  labelValue
   """
   column name
   """
@@ -14845,10 +14845,6 @@ type nutritionPlans_mutation_response {
 columns and relationships of "progress_photos"
 """
 type progressPhoto {
-  """
-  An object relationship
-  """
-  angle: progressPhotoLabel!
   createdAt: timestamptz!
   """
   An object relationship
@@ -14856,7 +14852,11 @@ type progressPhoto {
   file: files
   file_id: uuid
   id: uuid!
-  label: progressPhotoLabel_enum!
+  """
+  An object relationship
+  """
+  label: progressPhotoLabel!
+  labelValue: progressPhotoLabel_enum!
   takenOn: date!
   updatedAt: timestamptz!
   """
@@ -32366,12 +32366,12 @@ input progressPhoto_bool_exp {
   _and: [progressPhoto_bool_exp!]
   _not: progressPhoto_bool_exp
   _or: [progressPhoto_bool_exp!]
-  angle: progressPhotoLabel_bool_exp
   createdAt: timestamptz_comparison_exp
   file: files_bool_exp
   file_id: uuid_comparison_exp
   id: uuid_comparison_exp
-  label: progressPhotoLabel_enum_comparison_exp
+  label: progressPhotoLabel_bool_exp
+  labelValue: progressPhotoLabel_enum_comparison_exp
   takenOn: date_comparison_exp
   updatedAt: timestamptz_comparison_exp
   user: users_bool_exp
@@ -32381,12 +32381,12 @@ input progressPhoto_bool_exp {
 input type for inserting data into table "progress_photos"
 """
 input progressPhoto_insert_input {
-  angle: progressPhotoLabel_obj_rel_insert_input
   createdAt: timestamptz
   file: files_obj_rel_insert_input
   file_id: uuid
   id: uuid
-  label: progressPhotoLabel_enum
+  label: progressPhotoLabel_obj_rel_insert_input
+  labelValue: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   user: users_obj_rel_insert_input
@@ -32414,12 +32414,12 @@ input progressPhoto_on_conflict {
 Ordering options when selecting data from "progress_photos".
 """
 input progressPhoto_order_by {
-  angle: progressPhotoLabel_order_by
   createdAt: order_by
   file: files_order_by
   file_id: order_by
   id: order_by
-  label: order_by
+  label: progressPhotoLabel_order_by
+  labelValue: order_by
   takenOn: order_by
   updatedAt: order_by
   user: users_order_by
@@ -32438,7 +32438,7 @@ input progressPhoto_set_input {
   createdAt: timestamptz
   file_id: uuid
   id: uuid
-  label: progressPhotoLabel_enum
+  labelValue: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   userId: uuid
@@ -32463,7 +32463,7 @@ input progressPhoto_stream_cursor_value_input {
   createdAt: timestamptz
   file_id: uuid
   id: uuid
-  label: progressPhotoLabel_enum
+  labelValue: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   userId: uuid

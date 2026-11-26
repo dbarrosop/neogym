@@ -15,7 +15,7 @@ CREATE TABLE public.progress_photos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   -- Missing owners lose access immediately; the cleanup job removes their files.
   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  label text NOT NULL REFERENCES public.progress_photo_labels(value) ON DELETE RESTRICT,
+  label_value text NOT NULL REFERENCES public.progress_photo_labels(value) ON DELETE RESTRICT,
   taken_on date NOT NULL CHECK (taken_on BETWEEN DATE '0001-01-01' AND DATE '9999-12-31'),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -26,8 +26,8 @@ CREATE TABLE public.progress_photos (
 CREATE INDEX progress_photos_owner_history_idx
   ON public.progress_photos (user_id, taken_on DESC, created_at DESC, id DESC);
 CREATE INDEX progress_photos_owner_label_history_idx
-  ON public.progress_photos (user_id, label, taken_on DESC, created_at DESC, id DESC);
-CREATE INDEX progress_photos_label_idx ON public.progress_photos (label);
+  ON public.progress_photos (user_id, label_value, taken_on DESC, created_at DESC, id DESC);
+CREATE INDEX progress_photos_label_idx ON public.progress_photos (label_value);
 
 CREATE TRIGGER set_public_progress_photos_updated_at
 BEFORE UPDATE ON public.progress_photos

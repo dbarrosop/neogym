@@ -40,7 +40,7 @@ interface GraphQL<T> {
 }
 interface Photo {
 	id: string;
-	label: string;
+	labelValue: string;
 	takenOn: string;
 	userId: string;
 }
@@ -273,10 +273,10 @@ beforeAll(async () => {
 
 const DATE = "2024-02-29";
 const INSERT = `mutation Reserve($object: progressPhoto_insert_input!) {
-	insertProgressPhoto(object: $object) { id userId label takenOn }
+	insertProgressPhoto(object: $object) { id userId labelValue takenOn }
 }`;
 const PHOTO = `query Photo($id: uuid!) {
-	progressPhoto(id: $id) { id userId label takenOn angle { comment } file { id isUploaded progressPhoto { id } } }
+	progressPhoto(id: $id) { id userId labelValue takenOn label { value comment } file { id isUploaded progressPhoto { id } } }
 }`;
 const FILE = `query File($id: uuid!) { file(id: $id) { id isUploaded } }`;
 const INSERT_FILE = `mutation Init($object: files_insert_input!) {
@@ -284,7 +284,7 @@ const INSERT_FILE = `mutation Init($object: files_insert_input!) {
 }`;
 const DELETE_FILE = `mutation Remove($id: uuid!) { deleteFile(id: $id) { id } }`;
 const EDIT = `mutation Edit($id: uuid!, $set: progressPhoto_set_input!) {
-	updateProgressPhoto(pk_columns: { id: $id }, _set: $set) { id userId label takenOn }
+	updateProgressPhoto(pk_columns: { id: $id }, _set: $set) { id userId labelValue takenOn }
 }`;
 const ROOTS = `query Roots { __schema { mutationType { fields { name } } } }`;
 const fileInput = (id: string) => ({
@@ -294,9 +294,10 @@ const fileInput = (id: string) => ({
 	size: JPEG.length,
 	mimeType: "image/jpeg",
 });
-const photoInput = (label = "front") => ({ label, takenOn: DATE });
+const photoInput = (labelValue = "front") => ({ labelValue, takenOn: DATE });
 
 type PhotoAndFile = Photo & {
+	label: { value: string; comment: string | null };
 	file: {
 		id: string;
 		isUploaded: boolean;
@@ -615,6 +616,7 @@ test("a completed upload appears through the relationship, with private bytes an
 		).toMatchObject({
 			id,
 			...photoInput(),
+			label: { value: "front", comment: "Front" },
 			file: { id, isUploaded: true, progressPhoto: { id } },
 		});
 		expect(
@@ -680,7 +682,7 @@ test("a completed upload appears through the relationship, with private bytes an
 	expect((await photo(id)).data?.progressPhoto).toBeNull();
 });
 
-test("same-day reservations remain distinct and only date and angle can be corrected", async () => {
+test("same-day reservations remain distinct and only date and label can be corrected", async () => {
 	const first = await reserve();
 	const second = await reserve(owner, CONSTELLATION);
 	const pending = await reserve();
@@ -692,7 +694,7 @@ test("same-day reservations remain distinct and only date and angle can be corre
 		const list = await gql<{ progressPhotos: Array<{ id: string }> }>(
 			url,
 			`query Ready($ids: [uuid!]!) {
-			progressPhotos(where: { id: { _in: $ids }, file: { isUploaded: { _eq: true } } },
+			progressPhotos(where: { id: { _in: $ids }, labelValue: { _eq: front }, file: { isUploaded: { _eq: true } } },
 				order_by: [{ takenOn: desc }, { createdAt: desc }, { id: desc }]) { id }
 		}`,
 			{ ids: [first, second, pending] },
@@ -708,7 +710,7 @@ test("same-day reservations remain distinct and only date and angle can be corre
 				(await gql(url, EDIT, { id: first, set }, bearer(owner))).errors,
 			).toBeDefined();
 		}
-		const set = { label: "back", takenOn: "2024-01-01" };
+		const set = { labelValue: "back", takenOn: "2024-01-01" };
 		expect(
 			(
 				await gql<{ updateProgressPhoto: unknown }>(
@@ -729,6 +731,12 @@ test("same-day reservations remain distinct and only date and angle can be corre
 				)
 			).data?.updateProgressPhoto,
 		).toMatchObject({ id: first, userId: owner.id, ...set });
+		expect(
+			(await photo(first, bearer(owner), url)).data?.progressPhoto?.label,
+		).toEqual({
+			value: "back",
+			comment: "Back",
+		});
 		// Restore for the next endpoint's ordering assertion.
 		await gql(url, EDIT, { id: first, set: photoInput() }, bearer(owner));
 	}
