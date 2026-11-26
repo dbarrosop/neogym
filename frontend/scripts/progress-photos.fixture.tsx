@@ -546,13 +546,17 @@ assert.deepEqual(navigations.pop(), {
 });
 mutationMode = "delete";
 await act(() => exactText("Delete photo").click());
-const dialog = document.querySelector("[role=dialog]");
+const dialog = document.querySelector('[role="alertdialog"]');
 assert(dialog);
-await act(() =>
-  [...dialog.querySelectorAll("button")]
-    .find((button) => button.textContent === "Delete photo")
-    ?.click(),
+assert.equal(
+  document.getElementById(dialog.getAttribute("aria-labelledby") ?? "")?.textContent,
+  "Delete this progress photo?",
 );
+const confirmDelete = [...dialog.querySelectorAll("button")].find(
+  (button) => button.textContent === "Delete photo",
+);
+assert(confirmDelete);
+await act(() => confirmDelete.click());
 assert(tookDelete);
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
 owner = "bob";
