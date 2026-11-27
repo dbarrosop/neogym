@@ -19,38 +19,57 @@ The web app keeps photo rows and image bytes only in its in-memory query cache, 
 
 ## iPhone client
 
-On iPhone, the text-only Body shortcut is independent of charts, measurements,
-and HealthKit. The gallery shows one page of up to 16 ready records, with
-catalog-based filtering and pull-to-refresh. Previous and Next replace the
-page rather than appending photos as the web gallery does. Only the most
-recent 64 page-start cursors are kept for Previous; changing the angle or
-pulling to refresh starts again at the newest page. The viewer reads a fitted
-original; the grid reads 480 × 600 Storage transforms on demand, at most three
-at a time. The metadata editor cannot replace the file. Dates are Gregorian
-calendar strings, defaulting to today in the device's current time zone;
-neither the selected file nor the UTC upload instant supplies the date.
+- **Body card:** sits below the Body fat chart (or below Weight if only that
+  chart is present) and shows the ready-photo count, latest date taken and up to
+  four thumbnails in angle order. **View all** and **Add photos** remain
+  available without measurement data.
+- **Gallery:** shows date cards with the same front/side/back angle order as
+  web. A filled slot opens its newest upload and shows the count for
+  duplicates; a dashed Add slot opens that date with its angle highlighted.
+  Selecting an angle shows individual photos, including duplicates. **Load
+  older photos** appends 16 ready records by the full server cursor and
+  continues the same date card across pages. Back preserves the angle, not
+  the loaded photos; pull-to-refresh starts at the newest page.
+- **Viewer:** fits the original and shows the same-day measurement, when
+  available. Older/Newer and horizontal swipes step through the same angle
+  without adding Back entries. Edit uses a pushed native Cancel/Save form
+  for the date and angle only. Delete stays at the end of the viewer with a
+  system confirmation dialog.
+- **Compare:** uses the phone-sized before/after slider and native date
+  pickers for two photos of one angle. It shows the days between and neutral
+  changes for metrics with two distinct readings. As on the web, the
+  measurement for each date can fall back by up to seven days; sharing one
+  reading produces no change. Viewer navigation and comparison read up to
+  500 photos per angle. Measurement reads are scoped to the relevant dates
+  and never trigger HealthKit or change a reading.
+- **Check-in:** uses one date (local today by default) and one native
+  PhotosPicker per catalog angle. It uploads prepared slots one at a time
+  with separate immutable reservations. The date locks when uploads start;
+  retry reuses the original reservation and never repeats a successful
+  slot. A lost reservation response cannot be retried in the same form.
+  Completing the check-in or tapping Done after partial success opens the
+  gallery. Separate check-ins may still share an angle and date.
 
-The single-item system PhotosPicker transfers a provider-owned file to the
-preparer. NeoGym does not request library permission or copy that file into its
-own storage. It reads at most 25 MiB plus an overflow byte, accepts JPEG, PNG and
-common HEIC/HEIF stills, and checks declared pixels (40 megapixels, 12,000 px per
-edge) before decoding. ImageIO applies orientation and resamples the pixels
-into a fresh JPEG up to 2,560 px per edge and 5 MiB. Original EXIF, GPS and other
-source metadata are not copied. There is no app-owned temporary media file,
-queue or photo cache.
+The system PhotosPicker transfers one provider-owned file per slot without
+requesting library-wide permission. The app reads at most 25 MiB plus an
+overflow byte; it accepts JPEG, PNG and common HEIC/HEIF stills and checks
+dimensions (40 megapixels, 12,000 px per edge) before decoding. ImageIO orients
+and resamples into a fresh JPEG up to 2,560 px per edge and 5 MiB without copying
+source metadata. There is no app-owned media file, persistent photo cache or
+background queue. Visible thumbnails load 480 × 600 Storage transforms, at most
+three at a time on the active surface.
 
-Photo GraphQL bypasses the iPhone app's SDK persistent GraphQL cache (both reads
-and writes). Both APIs use uncached HTTPS with redirects disabled and the
-current matching SDK-managed bearer. Route requests can stop waiting for an
-already-issued SDK refresh without discarding a rotated token. The top photo
-route owns its work and data; navigation, tab changes, account loss and actual
-backgrounding discard it. Scene deactivation covers the content early for the
-App Switcher, but a transient inactive PhotosPicker keeps its selection host
-alive. Returning from background re-reads the gallery/viewer; a create or edit
-form is discarded, not replayed. If a write already reached the server, it may
-still finish. Check the gallery before starting another submission. Verify
-real HEIC transfers and App Switcher snapshots on physical iPhone before
-publication; simulator behavior is not device acceptance.
+The Body card and top photo route keep rows, bytes and form state in their own
+memory. HTTPS requests bypass the SDK's persistent GraphQL cache, disable
+redirects, and use only the matching SDK-managed bearer. Route cancellation can
+stop waiting for an issued SDK refresh without discarding a rotated token.
+Navigation, tab changes, account loss and actual backgrounding retire photo
+state. Scene deactivation covers the content early for the App Switcher; a
+transient inactive PhotosPicker keeps its host. Returning from background
+re-reads the current browse screen and does not restore a create/edit draft. A
+write already received by the server may finish: check the gallery before
+starting over. Verify real HEIC transfers and App Switcher snapshots on
+physical iPhone before publication; simulator behavior is not device acceptance.
 
 ## Reserve, upload, read
 

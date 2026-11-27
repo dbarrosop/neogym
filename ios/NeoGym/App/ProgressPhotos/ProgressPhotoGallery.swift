@@ -4,155 +4,198 @@ import SwiftUI
 struct ProgressPhotoGallery: View {
     let repository: any ProgressPhotoRepositoryProtocol
     let scope: ProgressPhotoRouteScope
+    @Binding var angle: String
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var catalog: [ProgressPhotoAngle] = []
-    @State private var angle = ""
-    @State private var paging = ProgressPhotoPaging()
-    @State private var page: ProgressPhotoPage?
+    @State private var rows = ProgressPhotoGalleryRows()
+    @State private var measurements: [BodyMeasurement] = []
     @State private var request = 0
+    @State private var olderRequest = 0
     @State private var generation = 0
-    @State private var failed = false
     @State private var loading = true
+    @State private var loadingOlder = false
+    @State private var failed = false
+    @State private var olderFailed = false
     @State private var slots = PhotoImageSlots()
 
     var body: some View {
-        ScrollViewReader { scroll in
-            FormScrollContainer {
-                Color.clear.frame(height: 0).id("photo-gallery-top").accessibilityHidden(true)
-                if !catalog.isEmpty {
-                    Picker("Filter by angle", selection: angleSelection) {
-                        Text("All angles").tag("")
-                        ForEach(catalog) { Text($0.name).tag($0.value) }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(minHeight: 44)
-                }
-                pageContent
+        FormScrollContainer {
+            if !catalog.isEmpty {
+                PhotoAngleChips(catalog: catalog, selection: $angle, includesAll: true)
             }
-            .onChange(of: request) { scroll.scrollTo("photo-gallery-top", anchor: .top) }
+            content
         }
         .navigationTitle("Progress photos")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: ProgressRoute.progressPhotoCreate) {
-                    Label("Add photo", systemImage: "plus")
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if let label = ProgressPhotoHistory.comparableAngle(rows.photos), !loading {
+                    NavigationLink(value: ProgressRoute.progressPhotoCompare(label: label, from: nil)) {
+                        Label("Compare", systemImage: "rectangle.split.2x1")
+                    }
+                    .accessibilityIdentifier("progressPhotos.compare")
+                }
+                NavigationLink(value: ProgressRoute.progressPhotoCreate(date: nil, angle: nil)) {
+                    Label("Add photos", systemImage: "plus")
                 }
                 .accessibilityIdentifier("progressPhotos.add")
             }
         }
-        .task(id: request) { await load() }
-        .refreshable { await load(fromStart: true) }
+        .task(id: LoadKey(angle: angle, request: request)) { await loadFirst() }
+        .task(id: olderRequest) { if loadingOlder { await loadOlder() } }
+        .refreshable { await loadFirst() }
     }
 
-    @ViewBuilder private var pageContent: some View {
+    private struct LoadKey: Equatable { let angle: String; let request: Int }
+
+    @ViewBuilder private var content: some View {
         if loading {
             AppLoadingStateView(title: "Loading progress photos")
         } else if failed {
             AppErrorStateView(title: "Couldn't load progress photos", message: "Check your connection and try again.") {
                 request += 1
             }
-        } else if let page {
-            if page.photos.isEmpty {
-                AppEmptyStateView(
-                    title: angle.isEmpty ? "No progress photos" : "No photos for this angle",
-                    message: angle.isEmpty ? "Add a photo to begin your private history." : "Choose another angle or show all angles.",
-                    systemImage: "photo"
-                )
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: typeSize.isAccessibilitySize ? 290 : 145), spacing: 12)], spacing: 12) {
-                    ForEach(page.photos) { photo in
-                        NavigationLink(value: ProgressRoute.progressPhotoDetail(photo.id)) {
-                            tile(photo)
+        } else if rows.photos.isEmpty && rows.next == nil {
+            AppEmptyStateView(
+                title: angle.isEmpty ? "No progress photos yet" : "No photos for this angle",
+                message: angle.isEmpty ? "Add photos to start your private history." : "Choose another angle or show all photos.",
+                systemImage: "photo"
+            )
+        } else {
+            if angle.isEmpty { contactSheet } else { angleGrid }
+            if rows.next != nil {
+                Button(loadingOlder ? "Loading older photos…" : "Load older photos") {
+                    loadingOlder = true
+                    olderRequest += 1
+                }
+                .buttonStyle(NeoGymSecondaryButtonStyle())
+                .disabled(loadingOlder)
+                if olderFailed { FeedbackBanner(message: "Couldn't load older photos. Try again.") }
+            }
+        }
+    }
+
+    private var contactSheet: some View {
+        let sheet = ProgressPhotoHistory.sheet(rows.photos, catalog: catalog)
+        let columnCount = max(1, min(sheet.columns.count, typeSize.isAccessibilitySize ? 1 : 4))
+        return LazyVStack(alignment: .leading, spacing: 16) {
+            ForEach(sheet.days) { day in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(ProgressPhotoDate.display(day.date)).font(.headline).accessibilityAddTraits(.isHeader)
+                    PhotoMeasurementCaption(measurement: ProgressPhotoHistory.measurement(measurements, for: day.date), date: day.date)
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: columnCount), spacing: 10) {
+                        ForEach(sheet.columns) { label in
+                            let photos = day.photos.filter { $0.label.value == label.value }
+                            if let first = photos.first {
+                                tile(first, caption: label.name, extra: photos.count > 1 ? "\(photos.count) photos" : nil)
+                            } else if catalog.contains(where: { $0.value == label.value }) {
+                                NavigationLink(value: ProgressRoute.progressPhotoCreate(date: day.date, angle: label.value)) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "plus")
+                                        Text("Add").font(.subheadline.weight(.medium))
+                                        Text(label.name).font(.caption)
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 100)
+                                    .padding(.vertical, 4)
+                                    .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(NeoGymTheme.textTertiary, style: StrokeStyle(lineWidth: 1, dash: [4, 4])) }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Add \(label.name) photo for \(ProgressPhotoDate.display(day.date))")
+                            } else {
+                                Color.clear.frame(height: 1).accessibilityHidden(true)
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("\(photo.label.name), \(ProgressPhotoDate.display(photo.takenOn))")
                     }
                 }
+                .padding(12)
+                .cardSurface()
             }
         }
-        if !loading && (paging.number > 1 || page?.next != nil) {
-            pageControls
-        }
     }
 
-    private var angleSelection: Binding<String> {
-        Binding(get: { angle }, set: { selection in
-            guard selection != angle else { return }
-            angle = selection
-            paging.reset()
-            requestPage()
-        })
-    }
-
-    private var pageControls: some View {
-        VStack(spacing: 8) {
-            Text("Page \(paging.number)")
-                .font(.footnote).foregroundStyle(NeoGymTheme.textSecondary)
-            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
-            layout {
-                Button("Previous") {
-                    if paging.previous() { requestPage() }
-                }
-                .disabled(!paging.canGoBack)
-                Button("Next") {
-                    if let next = page?.next, paging.next(after: next) { requestPage() }
-                }
-                .disabled(page?.next == nil)
+    private var angleGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
+            ForEach(rows.photos) { photo in
+                tile(photo, caption: ProgressPhotoDate.display(photo.takenOn), height: 152,
+                     extra: PhotoMeasurementCaption.text(ProgressPhotoHistory.measurement(measurements, for: photo.takenOn)))
             }
-            .buttonStyle(NeoGymSecondaryButtonStyle())
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func tile(_ photo: ProgressPhoto) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ProgressPhotoDisplay(repository: repository, scope: scope, id: photo.id, thumbnailSlots: slots, label: "")
-                .accessibilityHidden(true)
-            Text(photo.label.name).font(.headline).padding(.horizontal, 12)
-            Text(ProgressPhotoDate.display(photo.takenOn)).font(.footnote)
-                .foregroundStyle(NeoGymTheme.textSecondary)
-                .padding(.horizontal, 12).padding(.bottom, 12)
+    private func tile(_ photo: ProgressPhoto, caption: String, height: CGFloat = 100, extra: String?) -> some View {
+        NavigationLink(value: ProgressRoute.progressPhotoDetail(photo.id)) {
+            VStack(alignment: .leading, spacing: 4) {
+                ProgressPhotoDisplay(repository: repository, scope: scope, id: photo.id, thumbnailSlots: slots, label: "", thumbnailHeight: height)
+                    .accessibilityHidden(true)
+                Text(caption).font(.caption.weight(.semibold)).padding(.horizontal, 6)
+                if let extra { Text(extra).font(.caption2).foregroundStyle(NeoGymTheme.textSecondary).padding(.horizontal, 6) }
+            }
+            .padding(.bottom, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface(cornerRadius: 12)
+            .clipShape(.rect(cornerRadius: 12))
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface()
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+        .accessibilityLabel([photo.label.name, ProgressPhotoDate.display(photo.takenOn), extra].compactMap { $0 }.joined(separator: ", "))
     }
 
-    private func requestPage() {
-        loading = true
-        page = nil
-        generation += 1
-        request += 1
-    }
-
-    private func load(fromStart: Bool = false) async {
+    private func loadFirst() async {
         generation += 1
         let run = generation
-        if fromStart { paging.reset() }
-        page = nil
+        let selected = angle
         loading = true
+        loadingOlder = false
+        olderFailed = false
         failed = false
-        let requestedAngle = angle
-        let after = paging.cursor
+        rows = .init()
+        measurements = []
         do {
+            let angles = try await repository.angles()
             try scope.check()
-            let freshCatalog = try await repository.angles()
-            try scope.check()
-            let filter = freshCatalog.contains { $0.value == requestedAngle } ? requestedAngle : ""
-            let result = try await repository.page(angle: filter.isEmpty ? nil : filter, after: filter == requestedAngle ? after : nil)
-            try scope.check()
-            guard run == generation, angle == requestedAngle else { return }
-            catalog = freshCatalog
-            if filter != angle {
-                angle = filter
-                paging.reset()
+            guard run == generation, angle == selected else { return }
+            catalog = angles
+            if !selected.isEmpty && !angles.contains(where: { $0.value == selected }) {
+                angle = ""
+                return
             }
-            page = result
+            let page = try await repository.page(angle: selected.isEmpty ? nil : selected, after: nil)
+            try scope.check()
+            guard run == generation, angle == selected else { return }
+            rows.append(page)
             loading = false
+            await loadMeasurements(for: page, run: run)
         } catch {
-            guard (try? scope.check()) != nil, run == generation else { return }
-            failed = true
+            guard (try? scope.check()) != nil, run == generation, angle == selected else { return }
             loading = false
+            failed = true
         }
+    }
+
+    private func loadOlder() async {
+        guard let cursor = rows.next else { loadingOlder = false; return }
+        let run = generation
+        let selected = angle
+        olderFailed = false
+        do {
+            let page = try await repository.page(angle: selected.isEmpty ? nil : selected, after: cursor)
+            try scope.check()
+            guard run == generation, angle == selected else { return }
+            rows.append(page)
+            loadingOlder = false
+            await loadMeasurements(for: page, run: run)
+        } catch {
+            guard (try? scope.check()) != nil, run == generation, angle == selected else { return }
+            loadingOlder = false
+            olderFailed = true
+        }
+    }
+
+    private func loadMeasurements(for page: ProgressPhotoPage, run: Int) async {
+        guard let result = try? await repository.measurements(on: page.photos.map(\.takenOn)),
+              (try? scope.check()) != nil, run == generation else { return }
+        let refreshed = Set(result.map(\.measuredOn))
+        measurements.removeAll { refreshed.contains($0.measuredOn) }
+        measurements.append(contentsOf: result)
     }
 }

@@ -10,11 +10,24 @@ struct PhotoRouteBoundary<Content: View>: View {
     @Binding var selectedTab: AppTab
     var onBackground: () -> Void = {}
     @ViewBuilder let content: (any ProgressPhotoRepositoryProtocol, ProgressPhotoRouteScope) -> Content
+
+    var body: some View {
+        PhotoPrivacyBoundary(isPresented: selectedTab == .progress && path.last == route,
+                             fillsRoute: true, onBackground: onBackground, content: content)
+    }
+}
+
+/// Also protects the photo card when it is embedded in the Body root.
+struct PhotoPrivacyBoundary<Content: View>: View {
+    let isPresented: Bool
+    var fillsRoute = false
+    var onBackground: () -> Void = {}
+    @ViewBuilder let content: (any ProgressPhotoRepositoryProtocol, ProgressPhotoRouteScope) -> Content
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.privateProgressPhotos) private var repository
     @State private var scope: ProgressPhotoRouteScope?
 
-    private var visible: Bool { repository != nil && selectedTab == .progress && path.last == route }
+    private var visible: Bool { repository != nil && isPresented }
 
     var body: some View {
         ZStack {
@@ -29,14 +42,15 @@ struct PhotoRouteBoundary<Content: View>: View {
                     .allowsHitTesting(scenePhase == .active)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: fillsRoute ? .infinity : nil)
         .overlay {
             // UIKit handles willDeactivate before waiting for a SwiftUI redraw.
             if visible {
-                PhotoSnapshotCover(onBackground: background)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+                if fillsRoute {
+                    cover.ignoresSafeArea()
+                } else {
+                    cover
+                }
             }
         }
         .onAppear { reconcile() }
@@ -46,6 +60,12 @@ struct PhotoRouteBoundary<Content: View>: View {
             if scenePhase == .background { background() }
             else { reconcile() }
         }
+    }
+
+    private var cover: some View {
+        PhotoSnapshotCover(onBackground: background)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private func reconcile() {

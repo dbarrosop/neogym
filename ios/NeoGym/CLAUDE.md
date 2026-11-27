@@ -503,15 +503,17 @@ changes.
   owner-bound repository is injected alongside the ordinary repositories; it
   uses the same managed session store and SDK refresh transaction, but sends
   photo GraphQL and Storage through an ephemeral, no-redirect transport.
-  `ProgressRoute` keeps photo metadata, thumbnail pixels, and upload attempts
-  only in the selected tab's top photo destination. Pass the tab and path
-  bindings through that route boundary; a value snapshot captured in the
-  navigation-destination factory can remain stale after the push. An early
-  scene-inactive cover hides the route without detaching its PhotosPicker;
-  backgrounding retires the route scope and drops create/edit drafts. A
-  successful photo create replaces the top route in one path update (the same
-  Back history as dismiss-then-push, without a race during the pop animation).
-  Photo writes never invalidate Body or WidgetKit. See
+  The Body summary card and the selected tab's top photo route keep private
+  data in their own scopes. Pass the tab and path bindings through the
+  destination boundary; a value snapshot can remain stale after a push. An
+  early scene-inactive cover hides the active surface without detaching its
+  PhotosPicker; backgrounding retires the scope and drops create/edit drafts.
+  The gallery appends cursor pages into date cards and keeps only the angle
+  filter across pushes. Same-angle viewer steps replace the top route;
+  completing a multi-angle check-in or deleting opens the gallery in one
+  path update. Compare uses a native slider and reads only the selected dates
+  and their measurement lookbacks. Photo writes never invalidate Body or
+  WidgetKit. See
   [`progress-photos.md`](../../docs/developers/progress-photos.md) for the retry
   contract and release acceptance.
 - `NeoGymWidgets` contains the rest timer Live Activity and the Balance widget

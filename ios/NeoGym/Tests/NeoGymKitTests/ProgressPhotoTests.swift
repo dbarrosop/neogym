@@ -45,40 +45,79 @@ final class ProgressPhotoTests: XCTestCase {
         XCTAssertEqual(rows[15].createdAt, "2024-03-01T00:00:00.123456+00:00")
     }
 
-    func testPagingBackRestoresTheExactPageStartAndResetDropsHistory() {
-        let second = row(uploaded: true).cursor
-        let third = row(id: "00000000-0000-4000-8000-000000000002", uploaded: true).cursor
-        var paging = ProgressPhotoPaging()
-        XCTAssertTrue(paging.next(after: second))
-        XCTAssertFalse(paging.next(after: second), "A repeated cursor must not advance")
-        XCTAssertTrue(paging.next(after: third))
-        XCTAssertEqual(paging.number, 3)
-        XCTAssertTrue(paging.previous())
-        XCTAssertEqual(paging.cursor, second)
-        XCTAssertEqual(paging.number, 2)
-        XCTAssertTrue(paging.previous())
-        XCTAssertNil(paging.cursor)
-        XCTAssertFalse(paging.previous())
-        XCTAssertTrue(paging.next(after: second))
-        paging.reset()
-        XCTAssertEqual(paging.number, 1)
-        XCTAssertNil(paging.cursor)
-        XCTAssertFalse(paging.canGoBack)
+    func testAppendingOlderRowsMergesOneDateWithoutCollapsingDistinctUploads() {
+        let photos = (1...18).map { photo(index: 19 - $0, date: "2024-02-29", angle: "front_a") }
+        var rows = ProgressPhotoGalleryRows()
+        let first = ProgressPhotoPage(rows: Array(photos.prefix(17)))
+        rows.append(first)
+        XCTAssertEqual(rows.next, photos[15].cursor)
+        // A repeated ID (but not a different upload for the same day and pose) is skipped.
+        rows.append(ProgressPhotoPage(rows: Array(photos.suffix(3))))
+        let sheet = ProgressPhotoHistory.sheet(rows.photos, catalog: [])
+        XCTAssertEqual(sheet.days.map(\.date), ["2024-02-29"])
+        XCTAssertEqual(sheet.days.first?.photos.map(\.id), photos.map(\.id))
+        XCTAssertNil(rows.next)
+
+        rows = .init()
+        rows.append(first)
+        rows.append(first)
+        XCTAssertNil(rows.next, "A repeated cursor must not loop")
+        XCTAssertEqual(rows.photos.count, 16)
     }
 
-    func testPagingRemembersOnlyTheMostRecentPageStarts() {
-        var paging = ProgressPhotoPaging()
-        let limit = ProgressPhotoPaging.previousPageLimit
-        let cursors = (0...limit).map { offset in
-            ProgressPhotoCursor(takenOn: "2024-02-29", createdAt: "2024-03-01T00:00:00.123456+00:00", id: "fixture-\(offset)")
-        }
-        for cursor in cursors { XCTAssertTrue(paging.next(after: cursor)) }
-        for cursor in cursors.dropLast().reversed() {
-            XCTAssertTrue(paging.previous())
-            XCTAssertEqual(paging.cursor, cursor)
-        }
-        XCTAssertEqual(paging.number, 2)
-        XCTAssertFalse(paging.previous())
+    func testContactSheetAndLatestTilesUseWebAngleOrder() {
+        let front = photo(index: 3, date: "2024-02-29", angle: "front_b")
+        let side = photo(index: 2, date: "2024-02-29", angle: "side_left")
+        let back = photo(index: 1, date: "2024-02-22", angle: "back_a")
+        let unknown = photo(index: 4, date: "2024-02-29", angle: "other")
+        let sheet = ProgressPhotoHistory.sheet([front, side, back, unknown], catalog: [back.label, side.label, front.label])
+        XCTAssertEqual(sheet.columns.map(\.value), ["front_b", "side_left", "back_a", "other"])
+        XCTAssertEqual(sheet.days.map(\.date), ["2024-02-29", "2024-02-22"])
+        XCTAssertEqual(sheet.days.last?.photos, [back], "A missing angle must remain an empty slot")
+        XCTAssertEqual(ProgressPhotoHistory.latestTiles([unknown, front, side]), [front, side, unknown])
+    }
+
+    func testSameAngleNavigationAndComparisonIncludingSameDayDuplicates() throws {
+        let newest = photo(index: 3, date: "2024-03-01", angle: "front_a")
+        let duplicate = photo(index: 2, date: "2024-03-01", angle: "front_a")
+        let oldest = photo(index: 1, date: "2024-02-29", angle: "front_a")
+        let photos = [newest, duplicate, oldest]
+        XCTAssertEqual(ProgressPhotoHistory.comparableAngle([newest, newest]), nil)
+        XCTAssertEqual(ProgressPhotoHistory.comparableAngle(photos), "front_a")
+        let middle = try XCTUnwrap(ProgressPhotoHistory.neighbors(photos, id: duplicate.id))
+        XCTAssertEqual(middle.position, 2)
+        XCTAssertEqual(middle.older, oldest)
+        XCTAssertEqual(middle.newer, newest)
+
+        let defaults = try XCTUnwrap(ProgressPhotoHistory.comparison(photos, from: nil, to: nil))
+        XCTAssertEqual(defaults.before, oldest)
+        XCTAssertEqual(defaults.after, newest)
+        XCTAssertEqual(defaults.days, 1)
+        let fromNewest = try XCTUnwrap(ProgressPhotoHistory.comparison(photos, from: newest.id, to: nil))
+        XCTAssertEqual(fromNewest, defaults)
+        let reversed = try XCTUnwrap(ProgressPhotoHistory.comparison(photos, from: newest.id, to: duplicate.id))
+        XCTAssertEqual(reversed.before, duplicate)
+        XCTAssertEqual(reversed.after, newest)
+        XCTAssertEqual(reversed.days, 0)
+    }
+
+    func testPhotoMeasurementsUseSameDayOrBoundedComparisonLookback() {
+        let older = BodyMeasurement(id: "1", measuredOn: "2024-02-22", weightKg: 73, bodyFatPct: 19)
+        let latest = BodyMeasurement(id: "2", measuredOn: "2024-03-02", weightKg: 72)
+        let empty = BodyMeasurement(id: "3", measuredOn: "2024-03-01")
+        let rows = [older, latest, empty]
+        XCTAssertNil(ProgressPhotoHistory.measurement(rows, for: "2024-02-29"))
+        XCTAssertEqual(ProgressPhotoHistory.measurement(rows, for: "2024-02-29", lookback: 7), older)
+        XCTAssertNil(ProgressPhotoHistory.measurement(rows, for: "2024-03-01", lookback: 7), "An eighth-day row or a future row is not eligible")
+        XCTAssertEqual(ProgressPhotoHistory.measurement(rows, for: "2024-03-02"), latest)
+        XCTAssertNil(ProgressPhotoHistory.change(from: older, to: older))
+        XCTAssertEqual(ProgressPhotoHistory.change(from: older, to: latest), .init(weightKg: -1, bodyFatPct: nil))
+    }
+
+    private func photo(index: Int, date: String, angle: String) -> ProgressPhoto {
+        let id = String(format: "00000000-0000-4000-8000-%012d", index)
+        return .init(id: id, takenOn: date, createdAt: "2024-03-01T00:00:00.123456+00:00",
+                     label: .init(value: angle, comment: nil), file: .init(id: id, isUploaded: true))
     }
 
     func testRejectsOversizedFileAndLargeDeclaredRasterBeforeDecode() throws {

@@ -24,6 +24,14 @@ final class ProgressPhotoTransportTests: XCTestCase {
                                                          transport: ProgressPhotoTransport(configuration: configuration)))
         let catalog = try await repo.angles()
         XCTAssertEqual(catalog.map(\.name), ["Fixture angle"])
+        let summary = try await repo.summary()
+        XCTAssertEqual(summary, .init(count: 3, latestDate: "2024-02-29"))
+        let checkIn = try await repo.photos(on: "2024-02-29")
+        let history = try await repo.history(angle: "front_a")
+        XCTAssertEqual(checkIn.map(\.id), [photoFixtureId])
+        XCTAssertEqual(history.map(\.id), [photoFixtureId])
+        let measurements = try await repo.measurements(on: ["2024-02-29", "2024-02-29"])
+        XCTAssertEqual(measurements.map(\.weightKg), [73.2])
         let count = await cache.readWriteCount
         XCTAssertEqual(count, 0)
         do {
@@ -114,10 +122,64 @@ private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
-        let body = request.httpBody.map { String(decoding: $0, as: UTF8.self) } ?? ""
-        let response = body.contains("ProgressPhotoDetails") ? #"{"data":{}}"# :
-            #"{"data":{"progressPhotoLabels":[{"value":"test_angle","comment":"Fixture angle"}]}}"#
+        guard let body = fixtureRequestBody(),
+              let payload = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any],
+              let query = payload["query"] as? String,
+              let variables = payload["variables"] as? [String: Any] else {
+            XCTFail("Expected a GraphQL query with variables in the fixture request")
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+        guard let response = graphQLResponse(query: query, variables: variables) else {
+            XCTFail("Unexpected photo GraphQL operation or filter in the fixture: \(query) \(variables)")
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
         respond(url, mime: "application/json", body: response)
+    }
+
+    private func fixtureRequestBody() -> Data? {
+        if let body = request.httpBody { return body }
+        // Foundation may surface a POST body as a stream at the URLProtocol boundary.
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var buffer = [UInt8](repeating: 0, count: 1_024)
+        var data = Data()
+        while data.count < 32 * 1_024 {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 { return nil }
+            if count == 0 { return data }
+            data.append(contentsOf: buffer.prefix(count))
+        }
+        return nil
+    }
+
+    private func graphQLResponse(query: String, variables: [String: Any]) -> String? {
+        if query.contains("ProgressPhotoDetails") { return #"{"data":{}}"# }
+        if query.contains("ProgressPhotoAngles") {
+            return #"{"data":{"progressPhotoLabels":[{"value":"test_angle","comment":"Fixture angle"}]}}"#
+        }
+        guard let filter = variables["where"] as? [String: Any],
+              filter["userId"] as? [String: String] == ["_eq": "photo-owner"] else { return nil }
+        if query.contains("ProgressPhotoMeasurements") {
+            guard filter["measuredOn"] as? [String: [String]] == ["_in": ["2024-02-29"]] else { return nil }
+            return #"{"data":{"bodyMeasurements":[{"id":"measurement","measuredOn":"2024-02-29","weightKg":"73.2","bodyFatPct":null}]}}"#
+        }
+        guard let file = filter["file"] as? [String: [String: Bool]], file == ["isUploaded": ["_eq": true]] else { return nil }
+        if query.contains("ProgressPhotoSummary") {
+            return #"{"data":{"progressPhotosAggregate":{"aggregate":{"count":3,"max":{"takenOn":"2024-02-29"}}}}}"#
+        }
+        if query.contains("ProgressPhotoHistory") {
+            let isDay = filter["takenOn"] as? [String: String] == ["_eq": "2024-02-29"] && variables["limit"] as? Int == 8
+            let isAngle = filter["labelValue"] as? [String: String] == ["_eq": "front_a"] && variables["limit"] as? Int == 500
+            guard isDay || isAngle else { return nil }
+            return #"""
+            {"data":{"progressPhotos":[{"id":"\#(photoFixtureId)","takenOn":"2024-02-29","createdAt":"2024-03-01T00:00:00Z",
+            "label":{"value":"front_a"},"file":{"id":"\#(photoFixtureId)","isUploaded":true}}]}}
+            """#
+        }
+        return nil
     }
 
     private func respond(_ url: URL, mime: String, body: String) {

@@ -114,15 +114,19 @@ navigation issues and live-only coverage boundaries. See its
 
 ## Private progress photos (signed-in iPhone only)
 
-Open **Progress › Body › Progress photos** to add one library photo, enter an
-angle and a date (today or earlier), filter the gallery, or view, correct and
-confirm deletion of a stored photo. Separate uploads may share a date and
-angle. Photos do not change measurement or Health data. Demo keeps Body
-measurement logging and has no photo shortcut or picker.
+Open **Progress › Body › Progress photos** for the latest check-in and photo
+count. **Add photos** lets you choose one library photo per angle for a single
+date. **View all** groups check-ins by date, shows any same-day body readings,
+and filters angles or loads older check-ins. Open a photo to step through that
+angle, edit its date/angle, or delete it. **Compare** shows two same-angle photos
+with a slider and the time and measured changes between them.
 
-The app uses the system's single-photo picker, prepares a size-bounded JPEG
-without source metadata, and keeps the draft and display bytes in memory only.
-The gallery/viewer read again after backgrounding; a create/edit draft is lost.
+The app uses a native PhotosPicker for each angle and uploads sequentially;
+retry never re-uploads a completed slot. It prepares bounded JPEGs without
+source metadata and keeps drafts and display bytes in memory only. Browse
+screens read again after backgrounding; create/edit drafts are discarded.
+Photos do not write Body or Health data. Demo keeps measurement logging and
+has no photo card or picker.
 If an upload was interrupted, check the gallery before starting a new one.
 Deletion removes access; Storage's physical cleanup is separate. See the
 [API and hosted acceptance](../../docs/developers/progress-photos.md). Confirm

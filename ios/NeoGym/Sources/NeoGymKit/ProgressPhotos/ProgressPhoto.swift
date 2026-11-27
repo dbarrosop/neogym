@@ -49,33 +49,19 @@ public struct ProgressPhotoPage: Sendable {
     }
 }
 
-/// Navigation retains only page-start cursors, never older pages or their images.
-public struct ProgressPhotoPaging: Sendable {
-    static let previousPageLimit = 64
-    private var previousCursors: [ProgressPhotoCursor?] = []
-    public private(set) var cursor: ProgressPhotoCursor?
-    public private(set) var number = 1
-    public var canGoBack: Bool { !previousCursors.isEmpty }
+/// The gallery keeps already loaded rows while appending by the full server cursor.
+/// This contains only metadata and lives inside the active route.
+public struct ProgressPhotoGalleryRows: Sendable {
+    public private(set) var photos: [ProgressPhoto] = []
+    public private(set) var next: ProgressPhotoCursor?
+    private var seen: Set<String> = []
 
     public init() {}
 
-    public mutating func next(after nextCursor: ProgressPhotoCursor) -> Bool {
-        guard nextCursor != cursor else { return false }
-        if previousCursors.count == Self.previousPageLimit { previousCursors.removeFirst() }
-        previousCursors.append(cursor)
-        cursor = nextCursor
-        number += 1
-        return true
+    public mutating func append(_ page: ProgressPhotoPage) {
+        photos.append(contentsOf: page.photos.filter { seen.insert($0.id).inserted })
+        next = page.next == next ? nil : page.next
     }
-
-    public mutating func previous() -> Bool {
-        guard let previousCursor = previousCursors.popLast() else { return false }
-        cursor = previousCursor
-        number -= 1
-        return true
-    }
-
-    public mutating func reset() { self = .init() }
 }
 
 public enum ProgressPhotoDate {
@@ -120,6 +106,10 @@ public enum ProgressPhotoError: Error, Equatable, Sendable {
 
 public protocol ProgressPhotoRepositoryProtocol: Sendable {
     func angles() async throws -> [ProgressPhotoAngle]
+    func summary() async throws -> ProgressPhotoSummary
+    func photos(on date: String) async throws -> [ProgressPhoto]
+    func history(angle: String) async throws -> [ProgressPhoto]
+    func measurements(on dates: [String]) async throws -> [BodyMeasurement]
     func page(angle: String?, after: ProgressPhotoCursor?) async throws -> ProgressPhotoPage
     /// Includes incomplete reservations for reconciliation. Display only `isReady` rows.
     func reservation(_ id: String) async throws -> ProgressPhoto?
@@ -182,6 +172,12 @@ public struct ScopedProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
     }
 
     public func angles() async throws -> [ProgressPhotoAngle] { try await scope.perform { try await base.angles() } }
+    public func summary() async throws -> ProgressPhotoSummary { try await scope.perform { try await base.summary() } }
+    public func photos(on date: String) async throws -> [ProgressPhoto] { try await scope.perform { try await base.photos(on: date) } }
+    public func history(angle: String) async throws -> [ProgressPhoto] { try await scope.perform { try await base.history(angle: angle) } }
+    public func measurements(on dates: [String]) async throws -> [BodyMeasurement] {
+        try await scope.perform { try await base.measurements(on: dates) }
+    }
     public func page(angle: String?, after: ProgressPhotoCursor?) async throws -> ProgressPhotoPage {
         try await scope.perform { try await base.page(angle: angle, after: after) }
     }

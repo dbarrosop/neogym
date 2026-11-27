@@ -36,21 +36,69 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
 
     public func angles() async throws -> [ProgressPhotoAngle] {
         struct Result: Decodable { let progressPhotoLabels: [ProgressPhotoAngle] }
-        return try await query(Result.self, """
+        let result = try await query(Result.self, """
         query ProgressPhotoAngles { progressPhotoLabels(order_by: {value: asc}) { value comment } }
-        """, [:]).progressPhotoLabels
+        """, [:])
+        return ProgressPhotoHistory.sortedAngles(result.progressPhotoLabels)
+    }
+
+    public func summary() async throws -> ProgressPhotoSummary {
+        struct Result: Decodable {
+            struct Aggregate: Decodable {
+                struct Fields: Decodable {
+                    struct Maximum: Decodable { let takenOn: String? }
+                    let count: Int
+                    let max: Maximum?
+                }
+                let aggregate: Fields?
+            }
+            let progressPhotosAggregate: Aggregate
+        }
+        let result = try await query(Result.self, """
+        query ProgressPhotoSummary($where: progressPhoto_bool_exp!) {
+          progressPhotosAggregate(where: $where) { aggregate { count max { takenOn } } }
+        }
+        """, ["where": Self.galleryWhere(owner: owner, angle: nil, after: nil)])
+        guard let aggregate = result.progressPhotosAggregate.aggregate else { throw ProgressPhotoError.unavailable }
+        return .init(count: aggregate.count, latestDate: aggregate.max?.takenOn)
+    }
+
+    public func photos(on date: String) async throws -> [ProgressPhoto] {
+        var filter = Self.galleryWhere(owner: owner, angle: nil, after: nil)
+        filter["takenOn"] = ["_eq": date]
+        return ProgressPhotoHistory.unique(try await photos(where: filter, limit: 8))
+    }
+
+    public func history(angle: String) async throws -> [ProgressPhoto] {
+        try await ProgressPhotoHistory.unique(photos(where: Self.galleryWhere(owner: owner, angle: angle, after: nil),
+                                                    limit: ProgressPhotoHistory.angleLimit))
+    }
+
+    public func measurements(on dates: [String]) async throws -> [BodyMeasurement] {
+        guard !dates.isEmpty else { return [] }
+        struct Result: Decodable { let bodyMeasurements: [BodyMeasurement] }
+        let filter: [String: Any] = ["userId": ["_eq": owner], "measuredOn": ["_in": Array(Set(dates)).sorted()]]
+        return try await query(Result.self, """
+        query ProgressPhotoMeasurements($where: bodyMeasurements_bool_exp!) {
+          bodyMeasurements(where: $where) { id measuredOn weightKg bodyFatPct }
+        }
+        """, ["where": filter]).bodyMeasurements
     }
 
     public func page(angle: String?, after: ProgressPhotoCursor?) async throws -> ProgressPhotoPage {
+        try await ProgressPhotoPage(rows: photos(where: Self.galleryWhere(owner: owner, angle: angle, after: after),
+                                                limit: ProgressPhotoPage.size + 1))
+    }
+
+    private func photos(where filter: [String: Any], limit: Int) async throws -> [ProgressPhoto] {
         struct Result: Decodable { let progressPhotos: [ProgressPhoto] }
-        let result = try await query(Result.self, """
+        return try await query(Result.self, """
         query ProgressPhotoHistory($where: progressPhoto_bool_exp!, $limit: Int!) {
           progressPhotos(where: $where, order_by: [{takenOn: desc}, {createdAt: desc}, {id: desc}], limit: $limit) {
             \(Self.selection)
           }
         }
-        """, ["where": Self.galleryWhere(owner: owner, angle: angle, after: after), "limit": ProgressPhotoPage.size + 1])
-        return ProgressPhotoPage(rows: result.progressPhotos)
+        """, ["where": filter, "limit": limit]).progressPhotos
     }
 
     static func galleryWhere(owner: String, angle: String?, after: ProgressPhotoCursor?) -> [String: Any] {

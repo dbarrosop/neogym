@@ -2,6 +2,43 @@ import Foundation
 
 public enum ProgressPhotoUploadResult: Equatable, Sendable {
     case ready(String), checkAgain, processing, unconfirmedReservation, unavailableReservation
+
+    public var canRetry: Bool { self == .checkAgain || self == .processing }
+}
+
+/// A check-in uses one date and one immutable attempt per angle. Finishing an
+/// angle releases its JPEG and makes it impossible to upload that angle twice
+/// from the same form. A separate check-in may use the same date and angle.
+public actor ProgressPhotoCheckIn {
+    private let repository: any ProgressPhotoRepositoryProtocol
+    private let date: String
+    private var attempts: [String: ProgressPhotoUploadAttempt] = [:]
+    private var results: [String: ProgressPhotoUploadResult] = [:]
+    private var busy = false
+
+    public init(repository: any ProgressPhotoRepositoryProtocol, date: String) {
+        self.repository = repository
+        self.date = date
+    }
+
+    public func upload(_ jpeg: Data, fields: ProgressPhotoFields) async throws -> ProgressPhotoUploadResult {
+        try Task.checkCancellation()
+        guard fields.date == date else { throw ProgressPhotoError.unavailable }
+        let label = fields.label
+        if let result = results[label] { return result }
+        guard !busy else { return .checkAgain }
+        busy = true
+        defer { busy = false }
+        let attempt = attempts[label] ?? ProgressPhotoUploadAttempt(repository: repository, fields: fields, jpeg: jpeg)
+        attempts[label] = attempt
+        let result = try await attempt.run()
+        try Task.checkCancellation()
+        if !result.canRetry {
+            attempts[label] = nil
+            results[label] = result
+        }
+        return result
+    }
 }
 
 /// One explicit submission. Never reserve again, even when the first response is lost.

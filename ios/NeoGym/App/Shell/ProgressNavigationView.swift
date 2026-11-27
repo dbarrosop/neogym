@@ -25,6 +25,8 @@ struct ProgressNavigationView: View {
     @StateObject private var muscleModel: MuscleSetProgressViewModel
     @StateObject private var strengthModel: StrengthProgressViewModel
     @State private var reloadToken = 0
+    // Keep only the angle choice across pushes; photo data remains route-local.
+    @State private var photoGalleryAngle = ""
     @State private var muscleLoadedToken: Int?
     @State private var strengthLoadedToken: Int?
 
@@ -112,7 +114,7 @@ struct ProgressNavigationView: View {
                 healthImporter: bodyHealthImporter,
                 userId: currentUserId,
                 reloadToken: reloadToken,
-                showsProgressPhotos: progressPhotos != nil
+                showsProgressPhotos: progressPhotos != nil && selectedTab == .progress && path.isEmpty
             )
         case .energy:
             DailyEnergyListView(
@@ -161,7 +163,7 @@ struct ProgressNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
-        case .progressPhotoGallery, .progressPhotoCreate, .progressPhotoDetail, .progressPhotoEdit:
+        case .progressPhotoGallery, .progressPhotoCreate, .progressPhotoDetail, .progressPhotoEdit, .progressPhotoCompare:
             PhotoRouteBoundary(route: route, path: $path, selectedTab: $selectedTab, onBackground: { retirePhotoForm(route) }) { repository, scope in
                 photoDestination(route, repository: repository, scope: scope)
             }
@@ -190,28 +192,31 @@ struct ProgressNavigationView: View {
                                   scope: ProgressPhotoRouteScope) -> some View {
         switch route {
         case .progressPhotoGallery:
-            ProgressPhotoGallery(repository: repository, scope: scope)
-        case .progressPhotoCreate:
-            ProgressPhotoCreate(repository: repository, scope: scope) { id in
-                guard selectedTab == .progress, path.suffix(2).elementsEqual([.progressPhotoGallery, .progressPhotoCreate]) else {
-                    return
-                }
-                // The resulting stack is gallery → viewer, without racing a
-                // second navigation against SwiftUI's in-progress dismissal.
-                path = Array(path.dropLast()) + [.progressPhotoDetail(id)]
+            ProgressPhotoGallery(repository: repository, scope: scope, angle: $photoGalleryAngle)
+        case let .progressPhotoCreate(date, angle):
+            ProgressPhotoCreate(repository: repository, scope: scope, initialDate: date, highlightedAngle: angle) {
+                guard selectedTab == .progress, path.last == route else { return }
+                photoGalleryAngle = ""
+                // From Body, the gallery, or Compare, a spent check-in returns
+                // to the gallery without leaving a form in the back stack.
+                path = [.progressPhotoGallery]
             }
         case let .progressPhotoDetail(id):
             ProgressPhotoRecord(repository: repository, scope: scope, id: id, title: "Progress photo") { photo in
-                ProgressPhotoViewer(repository: repository, scope: scope, photo: photo)
+                ProgressPhotoViewer(repository: repository, scope: scope, photo: photo) { next in
+                    guard selectedTab == .progress, path.last == route else { return }
+                    path = Array(path.dropLast()) + [.progressPhotoDetail(next)]
+                } onDeleted: {
+                    guard selectedTab == .progress, path.last == route else { return }
+                    path = [.progressPhotoGallery]
+                }
             }
         case let .progressPhotoEdit(id):
             ProgressPhotoRecord(repository: repository, scope: scope, id: id, title: "Edit progress photo") { photo in
-                ProgressPhotoEdit(repository: repository, scope: scope, photo: photo) {
-                    guard path.last == route else { return }
-                    let count = path.suffix(2).elementsEqual([.progressPhotoDetail(id), route]) ? 2 : 1
-                    path = Array(path.dropLast(count))
-                }
+                ProgressPhotoEdit(repository: repository, scope: scope, photo: photo)
             }
+        case let .progressPhotoCompare(label, from):
+            ProgressPhotoCompare(repository: repository, scope: scope, initialLabel: label, initialPhoto: from)
         default:
             EmptyView()
         }

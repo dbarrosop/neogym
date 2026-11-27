@@ -8,6 +8,7 @@ struct BodyMeasurementsListView: View {
     let reloadToken: Int
     let showsProgressPhotos: Bool
     @State private var window = EntryHistoryWindow()
+    @State private var photoRefresh = 0
 
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
@@ -31,15 +32,13 @@ struct BodyMeasurementsListView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
+                trendCards
                 if showsProgressPhotos {
-                    NavigationLink(value: ProgressRoute.progressPhotoGallery) {
-                        ListRow(title: "Progress photos")
+                    PhotoPrivacyBoundary(isPresented: showsProgressPhotos) { repository, scope in
+                        ProgressPhotoSummaryCard(repository: repository, scope: scope, refreshToken: photoRefresh)
                     }
-                    .buttonStyle(.plain)
-                    .cardSurface()
-                    .accessibilityIdentifier("progressPhotos.open")
                 }
-                content
+                measurementHistory
             }
             .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
@@ -52,12 +51,26 @@ struct BodyMeasurementsListView: View {
             }
         }
         .onChange(of: reloadToken) { Task { await viewModel.load() } }
-        .refreshable { await viewModel.load(shouldSyncHealthMeasurements: true) }
+        .refreshable {
+            if showsProgressPhotos { photoRefresh += 1 }
+            await viewModel.load(shouldSyncHealthMeasurements: true)
+        }
     }
 
+    @ViewBuilder
+    private var trendCards: some View {
+        // Keep separate units for the two metrics.
+        let summary = BodyTrendSummary(points: viewModel.trendData.points, today: IntakeGrouping.formatLocalDate())
+        if !summary.weight.readings.isEmpty {
+            BodyMetricTrendCard(title: "Weight", metric: summary.weight, unit: "kg", latestDigits: 2, color: NeoGymTheme.chart1)
+        }
+        if !summary.bodyFat.readings.isEmpty {
+            BodyMetricTrendCard(title: "Body fat", metric: summary.bodyFat, unit: "%", latestDigits: 1, color: NeoGymTheme.chart2)
+        }
+    }
 
     @ViewBuilder
-    private var content: some View {
+    private var measurementHistory: some View {
         switch viewModel.state {
         case .idle:
             AppLoadingStateView(title: "Loading body measurements")
@@ -69,15 +82,6 @@ struct BodyMeasurementsListView: View {
             }
             .cardSurface()
         default:
-            // Weight and body fat each get a card with one unit, rather than
-            // one chart with two scales.
-            let summary = BodyTrendSummary(points: viewModel.trendData.points, today: IntakeGrouping.formatLocalDate())
-            if !summary.weight.readings.isEmpty {
-                BodyMetricTrendCard(title: "Weight", metric: summary.weight, unit: "kg", latestDigits: 2, color: NeoGymTheme.chart1)
-            }
-            if !summary.bodyFat.readings.isEmpty {
-                BodyMetricTrendCard(title: "Body fat", metric: summary.bodyFat, unit: "%", latestDigits: 1, color: NeoGymTheme.chart2)
-            }
             healthSyncStatus
             if viewModel.measurements.isEmpty {
                 AppEmptyStateView(

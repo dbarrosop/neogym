@@ -1,8 +1,8 @@
 import NeoGymKit
 import SwiftUI
 
-/// A gallery keeps at most one page of thumbnails, and only visible tiles
-/// retain decoded pixels. Three loads can simultaneously fetch and decode.
+/// Only visible tiles retain decoded pixels. At most three thumbnails can
+/// fetch and decode concurrently within the active photo surface.
 actor PhotoImageSlots {
     private var active = 0
     private var waiters: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -33,6 +33,8 @@ struct ProgressPhotoDisplay: View {
     let id: String
     var thumbnailSlots: PhotoImageSlots?
     let label: String
+    var thumbnailHeight: CGFloat = 160
+    var fillFrame = false
     @State private var visible = false
     @State private var pixels: CGImage?
     @State private var failed = false
@@ -43,7 +45,7 @@ struct ProgressPhotoDisplay: View {
     var body: some View {
         Group {
             if thumbnail {
-                NeoGymTheme.inset.frame(height: 160)
+                NeoGymTheme.inset.frame(height: thumbnailHeight)
                     .overlay {
                         if let pixels {
                             Image(decorative: pixels, scale: 1).resizable().scaledToFill()
@@ -52,6 +54,13 @@ struct ProgressPhotoDisplay: View {
                         }
                     }
                     .clipped()
+            } else if fillFrame {
+                NeoGymTheme.inset.overlay {
+                    if let pixels {
+                        Image(pixels, scale: 1, label: Text(label)).resizable().scaledToFill()
+                    } else { placeholder }
+                }
+                .clipped()
             } else if let pixels {
                 Image(pixels, scale: 1, label: Text(label)).resizable().scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: 620)
