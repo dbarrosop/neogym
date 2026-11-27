@@ -175,14 +175,14 @@
     {
       "id": "progress-photos",
       "area": "progress",
-      "title": "Upload, filter, correct and delete private progress photos",
+      "title": "Check in, browse, compare, correct and delete private progress photos",
       "frames": [
         "empty",
         "prepared",
-        "viewer",
-        "duplicates",
-        "edit",
         "timeline",
+        "viewer",
+        "edit",
+        "compare",
         "filtered",
         "confirm",
         "deleted"

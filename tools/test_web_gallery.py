@@ -69,7 +69,7 @@ class WebGalleryTests(unittest.TestCase):
             photo_row = next(row for row in rows if row["id"] == source)
             self.assertEqual([image["id"] for image in photo_row["images"]], [
                 source + "-" + frame for frame in
-                ("empty", "prepared", "viewer", "duplicates", "edit", "timeline", "filtered", "confirm", "deleted")
+                ("empty", "prepared", "timeline", "viewer", "edit", "compare", "filtered", "confirm", "deleted")
             ])
 
     def test_desktop_today_summary_reuses_the_root_while_mobile_shows_both_cards(self):

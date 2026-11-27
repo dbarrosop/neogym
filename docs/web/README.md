@@ -68,12 +68,13 @@ The following representative workflows add intermediate states and assertions:
   totals, and check that the plan reference prevents deletion.
 - **Progress Overview and Calories:** follow the Energy shortcut, inspect the
   Consumed and Net charts, and change only the Calories period.
-- **Private progress photos:** open the gallery from the Body summary card,
-  preview and upload a generated illustration with an earlier date, and keep a
-  second upload in the same date row. Edit its date and label, check its new
-  timeline row, filter by label, and confirm deletion. Fresh owner-role reads
-  verify which file was kept and Body shows its count and date. All pictured
-  images are synthetic, not photos of real people.
+- **Private progress photos:** open the gallery from the Body photo card, check
+  in generated Front A and Back A illustrations on an earlier date, then a later
+  Front A, and read the contact sheet with its Add slot. Step between the Front A
+  photos, correct a date in the edit dialog, compare the two, filter by label and
+  confirm deletion. Fresh owner-role reads verify the files and dates, and Body
+  shows the count, latest date and its photo. All pictured images are synthetic,
+  not photos of real people.
 - **Journal create/edit/delete:** save Markdown, edit the title, confirm deletion
   and return to the list. Fresh backend reads confirm each outcome.
 - **Appearance:** select Light, navigate to Today, then restore Dark.

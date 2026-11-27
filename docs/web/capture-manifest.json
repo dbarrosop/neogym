@@ -638,10 +638,10 @@
       "title": "Body: desktop section root",
       "file": "screenshots/desktop-root-body-root.png",
       "workflow": "desktop-root-body",
-      "capturedAt": "2026-11-27T09:29:12.318Z",
+      "capturedAt": "2026-11-27T11:40:12.369Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "db838c97b15f8028b696329cca0d768e9ccdf8674b15c7641561c21347346727",
+      "sha256": "869eb45171a8d1696cfb28d54719443430440a77b198dee6188cb224bd69d059",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -672,7 +672,7 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
@@ -4290,13 +4290,13 @@
     },
     {
       "id": "desktop-progress-photos-empty",
-      "title": "Progress photos: empty private history and the Add photo action",
+      "title": "Progress photos: empty private history and the Add photos action",
       "file": "screenshots/desktop-progress-photos-empty.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T09:29:53.177Z",
+      "capturedAt": "2026-11-27T11:40:13.848Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "bcce330121f712343262875ef12f599282ba4b75b212dad62c80dd858e4b750a",
+      "sha256": "c535e5b8709a6d78c259be81f11c68dcdbf6b6d99416413ff189a3356fa03dab",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4327,19 +4327,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-prepared",
-      "title": "Add photo: preview a generated illustration and choose an earlier date",
+      "title": "Add photos: one date, with a generated illustration in the Front A and Back A slots",
       "file": "screenshots/desktop-progress-photos-prepared.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T09:29:53.610Z",
+      "capturedAt": "2026-11-27T11:40:14.381Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "cda80eb9dca057674af33ed219be2bdc667a0b9fe524b57ff64f509be84fd1c3",
+      "sha256": "b02c53b97883fa9af09b96b2da859c88f3207c672ef4af8f836e8b699bbae442",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4370,19 +4370,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-viewer",
-      "title": "Photo viewer: the uploaded illustration with its label and date taken",
+      "title": "Photo viewer: the label as title, then older and newer Front A photos",
       "file": "screenshots/desktop-progress-photos-viewer.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T08:48:24.302Z",
+      "capturedAt": "2026-11-27T11:40:15.653Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "b3af3b7387ef32410eefcf1b4471c936d19c4c9fd8dd686f6978ea638ebd9cb2",
+      "sha256": "0d942d04c4ddc8e97cf18e3742387ed89eec40d6c77028c0f650b5bec24343d0",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4413,62 +4413,19 @@
         }
       },
       "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
-        "dirty": true
-      }
-    },
-    {
-      "id": "desktop-progress-photos-duplicates",
-      "title": "Timeline: two distinct uploads on a single date row",
-      "file": "screenshots/desktop-progress-photos-duplicates.png",
-      "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T08:48:24.890Z",
-      "width": 1440,
-      "height": 1000,
-      "sha256": "4657f31a5578a4cd9407455dc9bc8157b87fa8c955ce150914ac5037b7b1403a",
-      "captureProfile": {
-        "version": 2,
-        "fixtureVersion": 3,
-        "fixtureDate": "2025-01-15",
-        "fixedBrowserTime": "2025-01-15T09:41:00.000Z",
-        "clock": "Fixed browser Date; real Auth, database, timers, and capture provenance clocks",
-        "browser": "141.0.7390.37",
-        "rasterArgs": [
-          "--disable-gpu",
-          "--disable-partial-raster"
-        ],
-        "origin": "http://localhost:5173",
-        "playwright": "1.56.1",
-        "platform": "darwin",
-        "font": "@fontsource-variable/inter@5.3.0",
-        "locale": "en-US",
-        "timeZone": "UTC",
-        "deviceScaleFactor": 1,
-        "viewports": {
-          "desktop": {
-            "width": 1440,
-            "height": 1000
-          },
-          "mobile": {
-            "width": 390,
-            "height": 844
-          }
-        }
-      },
-      "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-edit",
-      "title": "Edit photo: correct the date and label without replacing the image",
+      "title": "Edit details: correct the date without replacing the image",
       "file": "screenshots/desktop-progress-photos-edit.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T09:29:55.225Z",
+      "capturedAt": "2026-11-27T11:40:16.223Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "d0a503a4f8c367d60883667f2e2bc3ff1be3d94002c62a2cdbbb880ccf939c1a",
+      "sha256": "019d0d27639148b18d598d193f6800b14ab7fc37d30ea11d48f21eb3aeca96c9",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4499,19 +4456,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-filtered",
-      "title": "Gallery: the Back B filter shows only the corrected photo",
+      "title": "Gallery: the Front A filter shows that label over time",
       "file": "screenshots/desktop-progress-photos-filtered.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T08:48:26.143Z",
+      "capturedAt": "2026-11-27T11:40:18.287Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "5214c0dc17b83a5ef29ab7ede3a9d4752cfddb45376e7da59530521946039069",
+      "sha256": "05a670c6f4724bf608a3cbb1afc620173cbe12c518f45a9f1108a67f7d9cb0fb",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4542,19 +4499,19 @@
         }
       },
       "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-confirm",
-      "title": "Delete photo: explicit confirmation before removing the selected image",
+      "title": "Delete photo: explicit confirmation before removing the image",
       "file": "screenshots/desktop-progress-photos-confirm.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T09:29:56.476Z",
+      "capturedAt": "2026-11-27T11:57:01.932Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "6a5a459ddcf1330c9a649f2c07b983746c0a4dbcf00e8885e669ba65facd253d",
+      "sha256": "c3543eadabb1ead577814ac94386542b6639d6ebeb6c1aad2e3f71d60bafacea",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4585,19 +4542,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-deleted",
-      "title": "Gallery: the other Front A photo remains after deletion",
+      "title": "Gallery: the first date keeps its Back A, with an Add slot where Front A was",
       "file": "screenshots/desktop-progress-photos-deleted.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T08:48:26.977Z",
+      "capturedAt": "2026-11-27T11:40:19.101Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "f741f568ff2176b92b0e582e7643e5603a861df5c12cf4e0b9d9495237d88b59",
+      "sha256": "7189cfe13f269d24cd96562b9de17f58a1e221087413876dd7ced74bce6e2c91",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4628,19 +4585,19 @@
         }
       },
       "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-empty",
-      "title": "Progress photos: empty private history and the Add photo action",
+      "title": "Progress photos: empty private history and the Add photos action",
       "file": "screenshots/mobile-progress-photos-empty.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T09:30:02.011Z",
+      "capturedAt": "2026-11-27T11:40:23.716Z",
       "width": 390,
       "height": 844,
-      "sha256": "08b6efb4460a77f11a81a92ea23367c966d13473049874c3c6a83678bff98328",
+      "sha256": "b8d6dd7b50e1a05ca1e330d4c2affdfeddd2412b35f4b20f5ab9e852e92d6d1e",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4671,19 +4628,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-prepared",
-      "title": "Add photo: preview a generated illustration and choose an earlier date",
+      "title": "Add photos: one date, with a generated illustration in the Front A and Back A slots",
       "file": "screenshots/mobile-progress-photos-prepared.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T09:30:02.398Z",
+      "capturedAt": "2026-11-27T11:40:24.223Z",
       "width": 390,
       "height": 844,
-      "sha256": "dd1f40e88849ca5f6e684ddaa5c1b8ffb94e107d059249a5d4ed95b80a850abc",
+      "sha256": "d1b462cfc84026f05cedb2629f20c48ffa6b7dba9bcd3b95be9c9081b2bfcb20",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4714,19 +4671,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-viewer",
-      "title": "Photo viewer: the uploaded illustration with its label and date taken",
+      "title": "Photo viewer: the label as title, then older and newer Front A photos",
       "file": "screenshots/mobile-progress-photos-viewer.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T08:48:32.930Z",
+      "capturedAt": "2026-11-27T11:40:25.220Z",
       "width": 390,
       "height": 844,
-      "sha256": "7daefdc117f6db9f404fce0fb51a2b8801a58ac300e297eadc588f55c9dcaa8a",
+      "sha256": "c9bbe75df499026d7d1433bee3c332687ea2322f790bde728ec83d742bcb611d",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4757,62 +4714,19 @@
         }
       },
       "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
-        "dirty": true
-      }
-    },
-    {
-      "id": "mobile-progress-photos-duplicates",
-      "title": "Timeline: two distinct uploads on a single date row",
-      "file": "screenshots/mobile-progress-photos-duplicates.png",
-      "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T08:48:33.492Z",
-      "width": 390,
-      "height": 844,
-      "sha256": "5bb1cafc624725218764bb6cc55f333a5125f54f2c95fd6265470d869e7f7098",
-      "captureProfile": {
-        "version": 2,
-        "fixtureVersion": 3,
-        "fixtureDate": "2025-01-15",
-        "fixedBrowserTime": "2025-01-15T09:41:00.000Z",
-        "clock": "Fixed browser Date; real Auth, database, timers, and capture provenance clocks",
-        "browser": "141.0.7390.37",
-        "rasterArgs": [
-          "--disable-gpu",
-          "--disable-partial-raster"
-        ],
-        "origin": "http://localhost:5173",
-        "playwright": "1.56.1",
-        "platform": "darwin",
-        "font": "@fontsource-variable/inter@5.3.0",
-        "locale": "en-US",
-        "timeZone": "UTC",
-        "deviceScaleFactor": 1,
-        "viewports": {
-          "desktop": {
-            "width": 1440,
-            "height": 1000
-          },
-          "mobile": {
-            "width": 390,
-            "height": 844
-          }
-        }
-      },
-      "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-edit",
-      "title": "Edit photo: correct the date and label without replacing the image",
+      "title": "Edit details: correct the date without replacing the image",
       "file": "screenshots/mobile-progress-photos-edit.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T09:30:03.597Z",
+      "capturedAt": "2026-11-27T11:40:25.695Z",
       "width": 390,
       "height": 844,
-      "sha256": "89c54b006df3102361319f08cac28b894e1cc278c9c6030b56d13f5e54ba7ef2",
+      "sha256": "e5b2362ae76014d2d596c792b1c9fc8fd534a97ec51c3e9b7ec1e14044c5dbe3",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4843,19 +4757,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-filtered",
-      "title": "Gallery: the Back B filter shows only the corrected photo",
+      "title": "Gallery: the Front A filter shows that label over time",
       "file": "screenshots/mobile-progress-photos-filtered.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T08:48:34.659Z",
+      "capturedAt": "2026-11-27T11:40:27.694Z",
       "width": 390,
       "height": 844,
-      "sha256": "9d406864c3fb8069b0af52c666b7aa0d75b57c17b015be53d6e19eaa93652089",
+      "sha256": "ae1ba049ce4be6e24d842239013693f65cc5629332c803a3e18c8ab88d87932d",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4886,19 +4800,19 @@
         }
       },
       "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-confirm",
-      "title": "Delete photo: explicit confirmation before removing the selected image",
+      "title": "Delete photo: explicit confirmation before removing the image",
       "file": "screenshots/mobile-progress-photos-confirm.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T09:30:04.758Z",
+      "capturedAt": "2026-11-27T11:40:28.123Z",
       "width": 390,
       "height": 844,
-      "sha256": "765e629e5ace487117e01f646af71570206f2916bbdd40494975467056d8ec3b",
+      "sha256": "d74f6aa046884ea132c7fd0b803a1be786144fba9b73090eaa37be2bd45e5263",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4929,19 +4843,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-deleted",
-      "title": "Gallery: the other Front A photo remains after deletion",
+      "title": "Gallery: the first date keeps its Back A, with an Add slot where Front A was",
       "file": "screenshots/mobile-progress-photos-deleted.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T08:48:35.391Z",
+      "capturedAt": "2026-11-27T11:40:28.451Z",
       "width": 390,
       "height": 844,
-      "sha256": "f7c788359aead9f5ce407263dbcf3300abcfa4f0946f915d945baef6fd334f6b",
+      "sha256": "a03df79a1e0ddda67fa27ac39e0b242889fed762243dbbea479c97a6ec99d3aa",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -4972,19 +4886,19 @@
         }
       },
       "source": {
-        "revision": "f821069e1c5c7c544c7af78cc31c416c57ae4fe1",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "desktop-progress-photos-timeline",
-      "title": "Timeline: newest date first, with one row per photo date",
+      "title": "Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A",
       "file": "screenshots/desktop-progress-photos-timeline.png",
       "workflow": "desktop-progress-photos",
-      "capturedAt": "2026-11-27T09:29:55.700Z",
+      "capturedAt": "2026-11-27T11:46:16.458Z",
       "width": 1440,
       "height": 1000,
-      "sha256": "87d119ccc9fb1d51b617ed61b54bd5dd3f138cbbb413a93ca091eacfa628ee7b",
+      "sha256": "1695176a1b8fd8dd8f553450937bd5806d4b7a30f12d3ba86385a2600b186828",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -5015,19 +4929,19 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     },
     {
       "id": "mobile-progress-photos-timeline",
-      "title": "Timeline: newest date first, with one row per photo date",
+      "title": "Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A",
       "file": "screenshots/mobile-progress-photos-timeline.png",
       "workflow": "mobile-progress-photos",
-      "capturedAt": "2026-11-27T09:30:04.063Z",
+      "capturedAt": "2026-11-27T11:40:24.885Z",
       "width": 390,
       "height": 844,
-      "sha256": "7ab3ce9e730a5d704bd61790c2da6124a128a58034a6b37ca477244b187fa646",
+      "sha256": "7e703beeae9e420fa615c11d4a9090e1135d9b8588d7f999f165ba0deee78a26",
       "captureProfile": {
         "version": 2,
         "fixtureVersion": 3,
@@ -5058,7 +4972,93 @@
         }
       },
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
+        "dirty": true
+      }
+    },
+    {
+      "id": "desktop-progress-photos-compare",
+      "title": "Compare: older and newer Front A, with the time between and the body-weight change",
+      "file": "screenshots/desktop-progress-photos-compare.png",
+      "workflow": "desktop-progress-photos",
+      "capturedAt": "2026-11-27T11:40:17.026Z",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "c2c4a17675d83e7be4807ea8d346ea5afce45851e6c6feef7c5664446249ed78",
+      "captureProfile": {
+        "version": 2,
+        "fixtureVersion": 3,
+        "fixtureDate": "2025-01-15",
+        "fixedBrowserTime": "2025-01-15T09:41:00.000Z",
+        "clock": "Fixed browser Date; real Auth, database, timers, and capture provenance clocks",
+        "browser": "141.0.7390.37",
+        "rasterArgs": [
+          "--disable-gpu",
+          "--disable-partial-raster"
+        ],
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
+        "dirty": true
+      }
+    },
+    {
+      "id": "mobile-progress-photos-compare",
+      "title": "Compare: older and newer Front A, with the time between and the body-weight change",
+      "file": "screenshots/mobile-progress-photos-compare.png",
+      "workflow": "mobile-progress-photos",
+      "capturedAt": "2026-11-27T11:40:26.442Z",
+      "width": 390,
+      "height": 844,
+      "sha256": "c9c9b6cc38e42286bf7f918f089d0aad9ba077b6f06530c1db061c7deba39b9b",
+      "captureProfile": {
+        "version": 2,
+        "fixtureVersion": 3,
+        "fixtureDate": "2025-01-15",
+        "fixedBrowserTime": "2025-01-15T09:41:00.000Z",
+        "clock": "Fixed browser Date; real Auth, database, timers, and capture provenance clocks",
+        "browser": "141.0.7390.37",
+        "rasterArgs": [
+          "--disable-gpu",
+          "--disable-partial-raster"
+        ],
+        "origin": "http://localhost:5173",
+        "playwright": "1.56.1",
+        "platform": "darwin",
+        "font": "@fontsource-variable/inter@5.3.0",
+        "locale": "en-US",
+        "timeZone": "UTC",
+        "deviceScaleFactor": 1,
+        "viewports": {
+          "desktop": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mobile": {
+            "width": 390,
+            "height": 844
+          }
+        }
+      },
+      "source": {
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       }
     }
@@ -5270,10 +5270,10 @@
         "The real route and its data requests settled without browser or GraphQL errors"
       ],
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       },
-      "verifiedAt": "2026-11-27T09:29:12.325Z"
+      "verifiedAt": "2026-11-27T11:40:12.373Z"
     },
     {
       "id": "desktop-root-energy",
@@ -5927,59 +5927,65 @@
     },
     {
       "id": "desktop-progress-photos",
-      "title": "Upload, filter, correct and delete private progress photos · desktop",
+      "title": "Check in, browse, compare, correct and delete private progress photos · desktop",
       "status": "passed",
       "steps": [
         "Open /progress/body",
-        "Open the photo summary card on Body and go to the empty history",
-        "Choose a synthetic PNG, select Front A, backdate it and upload",
-        "Upload a second illustration with the same date and label, then return to the gallery",
-        "Open the newer photo; edit its date and label without choosing a new image",
-        "Check that the edited photo moves to the newest date row, then filter by Back B",
-        "Open the filtered photo, edit it, and confirm Delete photo",
-        "Return to Body and confirm its photo count and latest date",
+        "Open the photo card on Body and go to the empty history",
+        "Check in Front A and Back A illustrations on one earlier date",
+        "Check in a later Front A only",
+        "Open the newer Front A, step to the older one and back",
+        "Correct the newer photo's date in the edit dialog",
+        "Compare the older and newer Front A photos",
+        "Filter the gallery to Front A",
+        "Open /progress/body/photos",
+        "Open the older Front A and confirm Delete photo",
+        "Return to Body and check its photo card",
         "Open /progress/body"
       ],
       "checks": [
-        "A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form",
-        "The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo",
-        "Body shows one ready photo and its date after the deletion",
-        "A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains",
+        "A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one",
+        "The edit changed only the date, keeping the same file ID and label",
+        "Body shows two ready photos, the latest date and that date's photo",
+        "A fresh backend read confirms that the deleted photo is inaccessible and the other two remain",
         "The runner removed the remaining synthetic upload through Storage after capture"
       ],
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       },
-      "verifiedAt": "2026-11-27T09:29:58.020Z"
+      "verifiedAt": "2026-11-27T11:57:03.226Z"
     },
     {
       "id": "mobile-progress-photos",
-      "title": "Upload, filter, correct and delete private progress photos · mobile",
+      "title": "Check in, browse, compare, correct and delete private progress photos · mobile",
       "status": "passed",
       "steps": [
         "Open /progress/body",
-        "Open the photo summary card on Body and go to the empty history",
-        "Choose a synthetic PNG, select Front A, backdate it and upload",
-        "Upload a second illustration with the same date and label, then return to the gallery",
-        "Open the newer photo; edit its date and label without choosing a new image",
-        "Check that the edited photo moves to the newest date row, then filter by Back B",
-        "Open the filtered photo, edit it, and confirm Delete photo",
-        "Return to Body and confirm its photo count and latest date",
+        "Open the photo card on Body and go to the empty history",
+        "Check in Front A and Back A illustrations on one earlier date",
+        "Check in a later Front A only",
+        "Open the newer Front A, step to the older one and back",
+        "Correct the newer photo's date in the edit dialog",
+        "Compare the older and newer Front A photos",
+        "Filter the gallery to Front A",
+        "Open /progress/body/photos",
+        "Open the older Front A and confirm Delete photo",
+        "Return to Body and check its photo card",
         "Open /progress/body"
       ],
       "checks": [
-        "A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form",
-        "The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo",
-        "Body shows one ready photo and its date after the deletion",
-        "A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains",
+        "A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one",
+        "The edit changed only the date, keeping the same file ID and label",
+        "Body shows two ready photos, the latest date and that date's photo",
+        "A fresh backend read confirms that the deleted photo is inaccessible and the other two remain",
         "The runner removed the remaining synthetic upload through Storage after capture"
       ],
       "source": {
-        "revision": "33bb14fa068b7118da703f9476bedbd8998c9fcd",
+        "revision": "3fd060e6643ec24cd9f3f3168bb9f592f00fb3a8",
         "dirty": true
       },
-      "verifiedAt": "2026-11-27T09:30:06.272Z"
+      "verifiedAt": "2026-11-27T11:57:13.482Z"
     }
   ],
   "knownIssues": [],
@@ -5987,7 +5993,7 @@
     "status": "passed",
     "group": "progress-photos",
     "profile": "all",
-    "startedAt": "2026-11-27T09:36:21.022Z",
-    "finishedAt": "2026-11-27T09:36:38.711Z"
+    "startedAt": "2026-11-27T11:56:48.705Z",
+    "finishedAt": "2026-11-27T11:57:13.489Z"
   }
 }

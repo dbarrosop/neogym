@@ -268,9 +268,12 @@ try {
     [...container.querySelectorAll("h2")].find((node) => node.textContent === "Weight & body fat");
   const bodyTrend = bodyTrendHeading();
   assert(bodyTrend);
-  const photoSummary = bodyTrend.closest("section")?.nextElementSibling;
-  assert.equal(photoSummary?.querySelector("h2")?.textContent, "Progress photos");
-  assert.equal(photoSummary?.nextElementSibling, measurements);
+  // The trend and its table stay together; the photo card sits in the side column.
+  assert.equal(bodyTrend.closest("section")?.nextElementSibling, measurements);
+  const photoCard = [...container.querySelectorAll("h2")]
+    .find((node) => node.textContent === "Progress photos")
+    ?.closest("section");
+  assert(photoCard && !photoCard.parentElement?.contains(measurements));
   await settle(() => button("Load more", measurements).click());
   failBody = true;
   await settle(() => client.invalidateQueries({ queryKey: bodyMeasurementsQueryKey("me") }));

@@ -5,7 +5,16 @@ import { dateBefore } from "./fixtures";
 
 const GALLERY = "/progress/body/photos";
 const FRONT_PHOTO = /^Front A progress photo,/;
-const BACK_PHOTO = /^Back B progress photo,/;
+// Sheet and filtered tiles are named "<label>, <date>"; Add slots "Add <label> photo for …".
+const FRONT_TILE = /^Front A, /;
+const BACK_TILE = /^Back A, /;
+const ADD_BACK_SLOT = /^Add Back A photo for /;
+const ADD_FRONT_SLOT = /^Add Front A photo for /;
+const A_TILE = /^(Front|Back) A, /;
+const OLDER = /^Older/;
+const NEWER = /^Newer/;
+const FRONT_BEFORE = /^Front A before, /;
+const FRONT_AFTER = /^Front A after, /;
 export const CHECK_PHOTOS = `query GalleryCheckProgressPhotos {
   progressPhotos(order_by: [{takenOn: desc}, {createdAt: desc}, {id: desc}]) {
     id takenOn labelValue file { id isUploaded }
@@ -73,39 +82,46 @@ async function decoded(image: Locator) {
     .toBeGreaterThan(0);
 }
 
-async function upload(guide: GalleryDriver, date: string, alternate = false) {
+/** Add photos on one date, one generated illustration per label, from the gallery. */
+async function checkIn(
+  guide: GalleryDriver,
+  date: string,
+  slots: [label: string, alternate: boolean][],
+  shot = false,
+) {
   const { page } = guide;
-  await page.getByRole("link", { name: "Add photo", exact: true }).click();
+  await page.getByRole("link", { name: "Add photos", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Add progress photo", exact: true }),
+    page.getByRole("heading", { name: "Add progress photos", exact: true }),
   ).toBeVisible();
-  await page
-    .getByLabel("Photo file", { exact: true })
-    .setInputFiles(await illustration(page, alternate));
-  await page.getByLabel("Label", { exact: true }).selectOption("front_a");
   const dateInput = page.getByLabel("Date taken", { exact: true });
   await dateInput.fill(date);
   await dateInput.blur();
-  const preview = page.getByRole("img", { name: "Preview for upload" });
-  await decoded(preview);
-  if (!alternate) {
+  for (const [label, alternate] of slots) {
+    // biome-ignore lint/performance/noAwaitInLoops: each slot prepares its own photo.
+    await page
+      .getByLabel(`${label} photo`, { exact: true })
+      .setInputFiles(await illustration(page, alternate));
+  }
+  const previews = page.locator("form label img");
+  await expect(previews).toHaveCount(slots.length);
+  for (const index of slots.keys()) {
+    // biome-ignore lint/performance/noAwaitInLoops: wait for every preview to decode.
+    await decoded(previews.nth(index));
+  }
+  if (shot) {
     await guide.shot(
       "prepared",
-      "Add photo: preview a generated illustration and choose an earlier date",
+      "Add photos: one date, with a generated illustration in the Front A and Back A slots",
     );
   }
-  await page.getByRole("button", { name: "Upload photo", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Progress photo", exact: true })).toBeVisible();
-  await decoded(page.getByRole("img", { name: FRONT_PHOTO }));
-  const id = page.url().split("/").at(-1);
-  if (!id) {
-    throw new Error("Photo viewer did not open an uploaded photo");
-  }
-  return id;
+  const submit = slots.length === 1 ? "Upload photo" : `Upload ${slots.length} photos`;
+  await page.getByRole("button", { name: submit, exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Progress photos", exact: true })).toBeVisible();
 }
 
-function cards(page: Page) {
-  return page.getByRole("list", { name: "Progress photos", exact: true }).getByRole("link");
+function sheet(page: Page) {
+  return page.getByRole("list", { name: "Progress photos", exact: true });
 }
 
 export async function captureProgressPhotos(
@@ -132,117 +148,154 @@ export async function captureProgressPhotos(
 
 async function walkthrough(guide: GalleryDriver, backend: CaptureBackend, today: string) {
   const { page } = guide;
-  const originalDate = dateBefore(today, 7);
-  const editedDate = dateBefore(today, 3);
+  const firstDate = dateBefore(today, 7);
+  const secondDate = dateBefore(today, 3);
+  const correctedDate = dateBefore(today, 2);
   const gallery = page.getByRole("heading", { name: "Progress photos", exact: true });
-  const filter = page.getByLabel("Filter by label", { exact: true });
   await guide.open("/progress/body", "Progress");
-  guide.step("Open the photo summary card on Body and go to the empty history");
+  guide.step("Open the photo card on Body and go to the empty history");
   const summary = page.getByRole("region", { name: "Progress photos", exact: true });
   await expect(summary.getByText("No photos yet", { exact: true })).toBeVisible();
-  await summary.getByRole("link", { name: "View progress photos" }).click();
+  await summary.getByRole("link", { name: "View all progress photos", exact: true }).click();
   await expect(gallery).toBeVisible();
   await expect(page.getByText("No progress photos yet", { exact: true })).toBeVisible();
-  await guide.shot("empty", "Progress photos: empty private history and the Add photo action");
+  await guide.shot("empty", "Progress photos: empty private history and the Add photos action");
 
-  guide.step("Choose a synthetic PNG, select Front A, backdate it and upload");
-  const first = await upload(guide, originalDate);
-  expect(first).toBeTruthy();
+  guide.step("Check in Front A and Back A illustrations on one earlier date");
+  await checkIn(
+    guide,
+    firstDate,
+    [
+      ["Front A", false],
+      ["Back A", true],
+    ],
+    true,
+  );
+  await expect(sheet(page).getByRole("link", { name: FRONT_TILE })).toHaveCount(1);
+  await expect(sheet(page).getByRole("link", { name: BACK_TILE })).toHaveCount(1);
+  guide.step("Check in a later Front A only");
+  await checkIn(guide, secondDate, [["Front A", true]]);
+  await expect(sheet(page).locator("h2 time")).toHaveCount(2);
+  await expect(sheet(page).getByRole("link", { name: ADD_BACK_SLOT })).toHaveCount(1);
+  const tiles = sheet(page).getByRole("link", { name: A_TILE });
+  await expect(tiles).toHaveCount(3);
+  for (const index of [0, 1, 2]) {
+    // biome-ignore lint/performance/noAwaitInLoops: every tile must be decoded before capture.
+    await decoded(tiles.nth(index).locator("img"));
+  }
+  await guide.shot(
+    "timeline",
+    "Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A",
+  );
+  const uploaded = await photos(backend);
+  const byKey = (label: string, date: string) =>
+    uploaded.find((row) => row.labelValue === label && row.takenOn === date)?.id ?? "";
+  const [newerFront, olderFront, back] = [
+    byKey("front_a", secondDate),
+    byKey("front_a", firstDate),
+    byKey("back_a", firstDate),
+  ];
+  expect(uploaded).toHaveLength(3);
+  expect(uploaded.every((row) => row.file?.isUploaded === true && row.file.id === row.id)).toBe(
+    true,
+  );
+  expect([newerFront, olderFront, back].every(Boolean)).toBe(true);
+  guide.check(
+    "A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one",
+  );
+
+  guide.step("Open the newer Front A, step to the older one and back");
+  await sheet(page).getByRole("link", { name: FRONT_TILE }).first().click();
+  await expect(page).toHaveURL((url) => url.pathname === `${GALLERY}/${newerFront}`);
+  await expect(page.getByRole("heading", { name: "Front A", exact: true, level: 1 })).toBeVisible();
+  await decoded(page.getByRole("img", { name: FRONT_PHOTO }));
+  await expect(page.getByText("2 of 2", { exact: true })).toBeVisible();
   await guide.shot(
     "viewer",
-    "Photo viewer: the uploaded illustration with its label and date taken",
+    "Photo viewer: the label as title, then older and newer Front A photos",
   );
-  await page.goBack();
-  await expect(gallery).toBeVisible();
-  guide.step(
-    "Upload a second illustration with the same date and label, then return to the gallery",
-  );
-  const second = await upload(guide, originalDate, true);
-  expect(second).toBeTruthy();
-  expect(second).not.toBe(first);
-  await page.goBack();
-  await expect(gallery).toBeVisible();
-  await expect(cards(page)).toHaveCount(2);
-  await decoded(cards(page).nth(0).locator("img"));
-  await decoded(cards(page).nth(1).locator("img"));
-  const timeline = page.getByRole("list", { name: "Progress photos", exact: true });
-  await expect(timeline.locator("h2 time")).toHaveCount(1);
-  await guide.shot("duplicates", "Timeline: two distinct uploads on a single date row");
-  expect(await photos(backend)).toEqual(
-    [second, first].map((id) => ({
-      id,
-      takenOn: originalDate,
-      labelValue: "front_a",
-      file: { id, isUploaded: true },
-    })),
-  );
-  guide.check(
-    "A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form",
-  );
+  await page.getByRole("link", { name: OLDER }).click();
+  await expect(page).toHaveURL((url) => url.pathname === `${GALLERY}/${olderFront}`);
+  await expect(page.getByText("1 of 2", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: NEWER }).click();
+  await expect(page).toHaveURL((url) => url.pathname === `${GALLERY}/${newerFront}`);
 
-  guide.step("Open the newer photo; edit its date and label without choosing a new image");
-  await cards(page).first().click();
-  await expect(page).toHaveURL((url) => url.pathname === `${GALLERY}/${second}`);
-  await page.getByRole("link", { name: "Edit", exact: true }).click();
-  await page.getByLabel("Label", { exact: true }).selectOption("back_b");
-  const dateInput = page.getByLabel("Date taken", { exact: true });
-  await dateInput.fill(editedDate);
-  await dateInput.blur();
-  await guide.shot("edit", "Edit photo: correct the date and label without replacing the image");
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await decoded(page.getByRole("img", { name: BACK_PHOTO }));
-  expect((await photos(backend))[0]).toEqual({
-    id: second,
-    takenOn: editedDate,
-    labelValue: "back_b",
-    file: { id: second, isUploaded: true },
+  guide.step("Correct the newer photo's date in the edit dialog");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit photo details", exact: true });
+  const dialogDate = dialog.getByLabel("Date taken", { exact: true });
+  await dialogDate.fill(correctedDate);
+  await dialogDate.blur();
+  await decoded(dialog.locator("img"));
+  await guide.shot("edit", "Edit details: correct the date without replacing the image");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("header time").first()).toHaveAttribute("datetime", correctedDate);
+  expect((await photos(backend)).find((row) => row.id === newerFront)).toEqual({
+    id: newerFront,
+    takenOn: correctedDate,
+    labelValue: "front_a",
+    file: { id: newerFront, isUploaded: true },
   });
+  guide.check("The edit changed only the date, keeping the same file ID and label");
 
-  guide.step("Check that the edited photo moves to the newest date row, then filter by Back B");
-  await page.goBack();
-  await expect(gallery).toBeVisible();
-  const dates = timeline.locator("h2 time");
-  await expect(dates).toHaveCount(2);
-  await expect(dates.nth(0)).toHaveAttribute("datetime", editedDate);
-  await expect(dates.nth(1)).toHaveAttribute("datetime", originalDate);
-  await decoded(cards(page).nth(0).locator("img"));
-  await decoded(cards(page).nth(1).locator("img"));
-  await guide.shot("timeline", "Timeline: newest date first, with one row per photo date");
-  await filter.selectOption("back_b");
-  await expect(cards(page)).toHaveCount(1);
-  await expect(cards(page).first()).toHaveAttribute("href", `${GALLERY}/${second}`);
-  await decoded(cards(page).first().locator("img"));
-  await guide.shot("filtered", "Gallery: the Back B filter shows only the corrected photo");
-  guide.check(
-    "The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo",
+  guide.step("Compare the older and newer Front A photos");
+  await page.getByRole("link", { name: "Compare", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Compare photos", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Before", { exact: true })).toHaveValue(olderFront);
+  await expect(page.getByLabel("After", { exact: true })).toHaveValue(newerFront);
+  await decoded(page.getByRole("img", { name: FRONT_BEFORE }));
+  await decoded(page.getByRole("img", { name: FRONT_AFTER }));
+  await expect(page.getByText("Time between", { exact: true })).toBeVisible();
+  await guide.shot(
+    "compare",
+    "Compare: older and newer Front A, with the time between and the body-weight change",
   );
 
-  guide.step("Open the filtered photo, edit it, and confirm Delete photo");
-  await cards(page).first().click();
-  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  guide.step("Filter the gallery to Front A");
+  await guide.open(GALLERY, "Progress photos");
+  await page.getByRole("button", { name: "Front A", exact: true }).click();
+  const frontOnly = page.getByRole("list", { name: "Front A photos", exact: true });
+  await expect(frontOnly.getByRole("link")).toHaveCount(2);
+  await decoded(frontOnly.getByRole("link").nth(0).locator("img"));
+  await decoded(frontOnly.getByRole("link").nth(1).locator("img"));
+  await guide.shot("filtered", "Gallery: the Front A filter shows that label over time");
+
+  guide.step("Open the older Front A and confirm Delete photo");
+  await frontOnly.getByRole("link").last().click();
+  await expect(page).toHaveURL((url) => url.pathname === `${GALLERY}/${olderFront}`);
+  // Let the viewer settle (its label history moves the layout) before opening the dialog.
+  await expect(page.getByText("1 of 2", { exact: true })).toBeVisible();
+  await decoded(page.getByRole("img", { name: FRONT_PHOTO }));
+  await guide.settle();
   await page.getByRole("button", { name: "Delete photo", exact: true }).click();
-  const dialog = page.getByRole("alertdialog", {
+  const confirm = page.getByRole("alertdialog", {
     name: "Delete this progress photo?",
     exact: true,
   });
-  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
-  await guide.shot(
-    "confirm",
-    "Delete photo: explicit confirmation before removing the selected image",
-  );
-  await dialog.getByRole("button", { name: "Delete photo", exact: true }).click();
+  await expect(confirm.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await guide.shot("confirm", "Delete photo: explicit confirmation before removing the image");
+  await confirm.getByRole("button", { name: "Delete photo", exact: true }).click();
   await expect(gallery).toBeVisible();
-  await expect(cards(page)).toHaveCount(1);
-  await expect(cards(page).first()).toHaveAttribute("href", `${GALLERY}/${first}`);
-  await decoded(cards(page).first().locator("img"));
-  await guide.shot("deleted", "Gallery: the other Front A photo remains after deletion");
-  expect((await photos(backend)).map(({ id }) => id)).toEqual([first]);
-  guide.step("Return to Body and confirm its photo count and latest date");
+  await expect(sheet(page).locator("h2 time")).toHaveCount(2);
+  await expect(sheet(page).getByRole("link", { name: ADD_FRONT_SLOT })).toHaveCount(1);
+  const remaining = sheet(page).getByRole("link", { name: A_TILE });
+  await expect(remaining).toHaveCount(2);
+  await decoded(remaining.nth(0).locator("img"));
+  await decoded(remaining.nth(1).locator("img"));
+  await guide.shot(
+    "deleted",
+    "Gallery: the first date keeps its Back A, with an Add slot where Front A was",
+  );
+  expect((await photos(backend)).map(({ id }) => id).sort()).toEqual([back, newerFront].sort());
+
+  guide.step("Return to Body and check its photo card");
   await guide.open("/progress/body", "Progress");
-  await expect(summary.getByText("1 photo", { exact: true })).toBeVisible();
-  await expect(summary.locator("time")).toHaveAttribute("datetime", originalDate);
-  guide.check("Body shows one ready photo and its date after the deletion");
+  await expect(summary.getByText("2 photos", { exact: true })).toBeVisible();
+  await expect(summary.locator("time")).toHaveAttribute("datetime", correctedDate);
+  await decoded(summary.locator("img").first());
+  guide.check("Body shows two ready photos, the latest date and that date's photo");
   guide.check(
-    "A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains",
+    "A fresh backend read confirms that the deleted photo is inaccessible and the other two remain",
   );
 }

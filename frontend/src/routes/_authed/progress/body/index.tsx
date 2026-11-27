@@ -105,7 +105,6 @@ function BodyRoute() {
             />
           ) : null}
           {renderTrend()}
-          <PhotoSummaryCard />
           {query.isPending ? (
             <Skeleton aria-hidden="true" className="h-60 w-full rounded-xl" />
           ) : null}
@@ -113,8 +112,9 @@ function BodyRoute() {
             <MeasurementsTable measurements={measurements} />
           ) : null}
         </div>
-        <div className={SIDE_COLUMN}>
+        <div className={`flex flex-col gap-5 ${SIDE_COLUMN}`}>
           <QuickBodyMeasurementForm />
+          <PhotoSummaryCard />
         </div>
       </div>
     </PageShell>

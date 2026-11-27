@@ -46,22 +46,40 @@ function useNearViewport(target: RefObject<HTMLElement | null>, enabled: boolean
   return near;
 }
 
+const LAYOUT = {
+  thumbnail: { box: "aspect-[4/5]", image: "h-full w-full object-cover" },
+  viewer: { box: "min-h-48 rounded-xl border", image: "max-h-[75dvh] w-full object-contain" },
+  fill: { box: "h-full w-full", image: "h-full w-full object-contain" },
+} as const;
+
 /**
  * A private photo read through authenticated Storage. Bytes are cached in memory per
- * owner (`photoKeys.bytes`); thumbnails load only near the viewport.
+ * owner (`photoKeys.bytes`); thumbnails load only near the viewport. `fill` draws the
+ * original contained in its parent's box (the compare slider stacks two).
  */
 export function PhotoImage({
   id,
   thumbnail = false,
+  fill = false,
+  eager = false,
   alt,
 }: {
   id: string;
   thumbnail?: boolean;
+  fill?: boolean;
+  /** Load a thumbnail right away instead of near the viewport (a handful of tiles). */
+  eager?: boolean;
   alt: string;
 }) {
+  let layout: (typeof LAYOUT)[keyof typeof LAYOUT] = LAYOUT.viewer;
+  if (thumbnail) {
+    layout = LAYOUT.thumbnail;
+  } else if (fill) {
+    layout = LAYOUT.fill;
+  }
   const owner = usePhotoOwner();
   const target = useRef<HTMLDivElement>(null);
-  const near = useNearViewport(target, thumbnail);
+  const near = useNearViewport(target, thumbnail && !eager);
   const variant = thumbnail ? "thumbnail" : "full";
   const bytes = useQuery({
     queryKey: photoKeys.bytes(owner, id, variant),
@@ -78,10 +96,7 @@ export function PhotoImage({
   return (
     <div
       ref={target}
-      className={cn(
-        "grid place-items-center overflow-hidden bg-surface-inset",
-        thumbnail ? "aspect-[4/5]" : "min-h-48 rounded-xl border",
-      )}
+      className={cn("grid place-items-center overflow-hidden bg-surface-inset", layout.box)}
     >
       {url && !failed ? (
         <img
@@ -89,9 +104,7 @@ export function PhotoImage({
           alt={alt}
           draggable={false}
           decoding="async"
-          className={
-            thumbnail ? "h-full w-full object-cover" : "max-h-[75dvh] w-full object-contain"
-          }
+          className={layout.image}
           onError={() => setBroken(true)}
         />
       ) : null}
@@ -114,18 +127,22 @@ export function PhotoImage({
           )}
         </div>
       ) : null}
-      {url || failed ? null : <PhotoPlaceholder thumbnail={thumbnail} />}
+      {url || failed ? null : <PhotoPlaceholder thumbnail={thumbnail} fill={fill} />}
     </div>
   );
 }
 
-function PhotoPlaceholder({ thumbnail }: { thumbnail: boolean }) {
+function PhotoPlaceholder({ thumbnail, fill }: { thumbnail: boolean; fill: boolean }) {
   const pulse = "h-full w-full animate-pulse bg-muted motion-reduce:animate-none";
-  // Tiles are decorative while loading; the viewer announces its single image.
+  // Tiles are decorative while loading; a viewer or compare image announces itself.
   return thumbnail ? (
     <div aria-hidden="true" className={pulse} />
   ) : (
-    <div role="status" aria-label="Loading photo" className={cn(pulse, "min-h-[60dvh]")} />
+    <div
+      role="status"
+      aria-label="Loading photo"
+      className={cn(pulse, fill ? undefined : "min-h-[60dvh]")}
+    />
   );
 }
 

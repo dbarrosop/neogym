@@ -87,6 +87,10 @@ export const photoKeys = {
   summary: (owner: string) => ["progress_photos", owner, "summary"] as const,
   lists: (owner: string) => ["progress_photos", owner, "list"] as const,
   list: (owner: string, label: string) => ["progress_photos", owner, "list", label] as const,
+  /** One label's whole history (older/newer navigation and compare). */
+  pose: (owner: string, label: string) => ["progress_photos", owner, "pose", label] as const,
+  /** The photos taken on one date (Body's latest check-in). */
+  day: (owner: string, date: string) => ["progress_photos", owner, "day", date] as const,
   photo: (owner: string, id: string) => ["progress_photos", owner, "photo", id] as const,
   detail: (owner: string, id: string) => ["progress_photos", owner, "photo", id, "row"] as const,
   bytes: (owner: string, id: string, variant: "thumbnail" | "full") =>
@@ -97,6 +101,14 @@ export const photoKeys = {
 export function isPhotoBytesKey(key: readonly unknown[]) {
   return key[2] === "photo" && key[4] === "bytes";
 }
+
+/** Queries that list several photos; a delete drops them so none shows the deleted one. */
+export function isPhotoCollectionKey(key: readonly unknown[]) {
+  return key[2] === "list" || key[2] === "pose" || key[2] === "day";
+}
+
+/** Upper bound for one label's history, which older/newer navigation and compare read whole. */
+export const POSE_HISTORY_LIMIT = 500;
 
 /** Photo traffic never uses the browser's HTTP cache; auth and refresh stay with the SDK. */
 export function photoRequest(signal?: AbortSignal): RequestInit {
@@ -185,6 +197,28 @@ export async function listPhotos(
     nextCursor = { takenOn, createdAt, id };
   }
   return { items: visible.filter(readyPhoto), nextCursor };
+}
+
+/** One label's ready photos, newest first (up to `POSE_HISTORY_LIMIT`). */
+export async function listPosePhotos(
+  owner: string,
+  label: ProgressPhotoLabel_Enum,
+  signal?: AbortSignal,
+) {
+  const { progressPhotos } = await gqlRequest(
+    PhotoHistory,
+    { where: galleryWhere(owner, label, null), limit: POSE_HISTORY_LIMIT },
+    photoRequest(signal),
+  );
+  return progressPhotos.filter(readyPhoto);
+}
+
+/** Up to `limit` ready photos taken on `date`, newest upload first. */
+export async function listPhotosOn(owner: string, date: string, signal?: AbortSignal, limit = 8) {
+  const where = galleryWhere(owner, null, null);
+  where.takenOn = { _eq: date };
+  const { progressPhotos } = await gqlRequest(PhotoHistory, { where, limit }, photoRequest(signal));
+  return progressPhotos.filter(readyPhoto);
 }
 
 export async function readPhoto(id: string, signal?: AbortSignal) {

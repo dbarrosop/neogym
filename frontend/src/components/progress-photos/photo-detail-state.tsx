@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ImageOff } from "lucide-react";
 import type { ReactNode } from "react";
-import { PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,12 +19,9 @@ export function usePhotoDetail(id: string) {
 /** Loads one ready photo; renders its loading, error and not-found states otherwise. */
 export function PhotoDetailState({
   id,
-  loadingPage,
   children,
 }: {
   id: string;
-  /** Wrap the fallback in a page shell (the edit route has no shell of its own until loaded). */
-  loadingPage?: boolean;
   children: (photo: ReadyPhoto) => ReactNode;
 }) {
   const query = usePhotoDetail(id);
@@ -68,5 +64,5 @@ export function PhotoDetailState({
       />
     );
   }
-  return loadingPage ? <PageShell maxWidth="2xl">{fallback}</PageShell> : fallback;
+  return fallback;
 }

@@ -1,7 +1,15 @@
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
+import type { ProgressPhotoLabel_Enum } from "@/gql/graphql";
+import { useBodyMeasurements } from "@/lib/hooks/use-body-measurements";
 import { useAuth } from "@/lib/nhost/auth-provider";
-import { isPhotoBytesKey, photoKeys } from "@/lib/progress-photos/api";
+import {
+  isPhotoBytesKey,
+  isPhotoCollectionKey,
+  listPosePhotos,
+  photoKeys,
+} from "@/lib/progress-photos/api";
+import { measurementNear } from "@/lib/progress-photos/sheet";
 
 /** The signed-in user whose photos are shown. Photo screens only render under `_authed`. */
 export function usePhotoOwner() {
@@ -35,4 +43,43 @@ export function invalidatePhotoRows(queryClient: QueryClient, owner: string) {
     queryKey: photoKeys.owner(owner),
     predicate: (query) => !isPhotoBytesKey(query.queryKey),
   });
+}
+
+/**
+ * Before leaving a deleted photo: drop every cached photo list (so none can show it while
+ * reloading) and refresh the count. Call `forgetPhoto` once its screen has unmounted.
+ */
+export function dropPhotoCollections(queryClient: QueryClient, owner: string) {
+  queryClient.removeQueries({
+    queryKey: photoKeys.owner(owner),
+    predicate: (query) => isPhotoCollectionKey(query.queryKey),
+  });
+  return queryClient.invalidateQueries({ queryKey: photoKeys.summary(owner) });
+}
+
+export function forgetPhoto(queryClient: QueryClient, owner: string, id: string) {
+  queryClient.removeQueries({ queryKey: photoKeys.photo(owner, id) });
+}
+
+/** One label's ready photos, newest first; `null` label disables the read. */
+export function usePosePhotos(label: ProgressPhotoLabel_Enum | null) {
+  const owner = usePhotoOwner();
+  return useQuery({
+    queryKey: photoKeys.pose(owner, label ?? ""),
+    queryFn: ({ signal }) => listPosePhotos(owner, label as ProgressPhotoLabel_Enum, signal),
+    enabled: label !== null,
+  });
+}
+
+/**
+ * Body measurements for photo dates, from the same cache as Progress › Body. `maxDays`
+ * = 0 matches the same date only; more also accepts the latest earlier reading.
+ */
+export function usePhotoMeasurements(maxDays: number) {
+  const { data } = useBodyMeasurements();
+  const rows = data?.bodyMeasurements;
+  return useMemo(
+    () => (date: string) => (rows ? measurementNear(rows, date, maxDays) : null),
+    [rows, maxDays],
+  );
 }

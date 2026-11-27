@@ -1,11 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 import { ProgressPhotoLabel_Enum } from "@/gql/graphql";
-import { galleryWhere, type Photo } from "./api";
+import { galleryWhere, type Photo, type ReadyPhoto } from "./api";
 import { PhotoUploadAttempt } from "./attempt";
 import { photoDateLabel, validPhotoDate } from "./date";
 import { inspectImage } from "./image-headers";
 import { stripJpegMetadata } from "./jpeg";
+import {
+  buildContactSheet,
+  compareSelection,
+  measurementNear,
+  poseNeighbors,
+  sortPhotoLabels,
+} from "./sheet";
 
 const id = "558e5143-0f20-4014-970e-50ed9e0a32a8";
 const fields = { label: ProgressPhotoLabel_Enum.FrontA, date: "2024-02-29" };
@@ -18,6 +25,90 @@ const photo: Photo = {
 };
 const pending: Photo = { ...photo, file: { id, isUploaded: false } };
 const ready: Photo = { ...photo, file: { id, isUploaded: true } };
+
+const FRONT = { value: ProgressPhotoLabel_Enum.FrontA, comment: "Front A" };
+const BACK = { value: ProgressPhotoLabel_Enum.BackA, comment: "Back A" };
+const FRONT_B = { value: ProgressPhotoLabel_Enum.FrontB, comment: "Front B" };
+function readyAt(number: number, takenOn: string, label = FRONT): ReadyPhoto {
+  const photoId = `39d36419-4eb1-4190-8213-${String(number).padStart(12, "0")}`;
+  return { ...photo, id: photoId, takenOn, label, file: { id: photoId, isUploaded: true } };
+}
+
+describe("progress photo browsing helpers", () => {
+  test("labels read front, side, back, then anything else", () => {
+    const values = ["back_b", "other", "front_b", "side", "back_a", "front_a"];
+    expect(sortPhotoLabels(values.map((value) => ({ value }))).map((row) => row.value)).toEqual([
+      "front_a",
+      "front_b",
+      "side",
+      "back_a",
+      "back_b",
+      "other",
+    ]);
+  });
+
+  test("the contact sheet lines up used labels in catalog order, newest date first", () => {
+    const photos = [
+      readyAt(1, "2025-01-12", BACK),
+      readyAt(2, "2025-01-12", BACK),
+      readyAt(3, "2025-01-08", FRONT),
+      readyAt(4, "2025-01-08", BACK),
+    ];
+    const sheet = buildContactSheet(photos, [BACK, FRONT_B, FRONT]);
+    // Front B is in the catalog but unused, so it gets no column.
+    expect(sheet.columns.map((label) => label.value)).toEqual(["front_a", "back_a"]);
+    expect(
+      sheet.rows.map((row) => [row.date, row.cells.map((cell) => cell.photos.length)]),
+    ).toEqual([
+      ["2025-01-12", [0, 2]],
+      ["2025-01-08", [1, 1]],
+    ]);
+    expect(sheet.rows[0]?.cells[1]?.photos[0]?.id).toBe(photos[0]?.id);
+  });
+
+  test("older/newer neighbours and position follow the label's date order", () => {
+    const pose = [readyAt(3, "2025-01-12"), readyAt(2, "2025-01-10"), readyAt(1, "2025-01-08")];
+    expect(poseNeighbors(pose, pose[1]?.id ?? "")).toEqual({
+      older: pose[2] ?? null,
+      newer: pose[0] ?? null,
+      position: 2,
+      total: 3,
+    });
+    expect(poseNeighbors(pose, pose[0]?.id ?? "")?.newer).toBeNull();
+    expect(poseNeighbors(pose, "missing")).toBeNull();
+  });
+
+  test("compare defaults to oldest vs newest and keeps a chosen pair in date order", () => {
+    const pose = [readyAt(3, "2025-01-12"), readyAt(2, "2025-01-10"), readyAt(1, "2025-01-08")];
+    const ids = (pair: ReturnType<typeof compareSelection>) => [pair?.before.id, pair?.after.id];
+    expect(ids(compareSelection(pose, undefined, undefined))).toEqual([pose[2]?.id, pose[0]?.id]);
+    // A reversed choice is shown oldest first.
+    expect(ids(compareSelection(pose, pose[0]?.id, pose[1]?.id))).toEqual([
+      pose[1]?.id,
+      pose[0]?.id,
+    ]);
+    // Opening compare from the oldest photo pairs it with the newest.
+    expect(ids(compareSelection(pose, undefined, pose[2]?.id))).toEqual([pose[2]?.id, pose[0]?.id]);
+    expect(compareSelection(pose.slice(0, 1), undefined, undefined)).toBeNull();
+  });
+
+  test("a photo's measurement is that day's reading or the latest within the window", () => {
+    const rows = [
+      { measuredOn: "2025-01-12", weightKg: null, bodyFatPct: null },
+      { measuredOn: "2025-01-10", weightKg: "81.2", bodyFatPct: 19.5 },
+      { measuredOn: "2025-01-01", weightKg: 82, bodyFatPct: null },
+    ];
+    expect(measurementNear(rows, "2025-01-12")).toEqual({
+      measuredOn: "2025-01-10",
+      weightKg: 81.2,
+      bodyFatPct: 19.5,
+    });
+    expect(measurementNear(rows, "2025-01-12", 0)).toBeNull();
+    // Seven days back from Jan 8 still reaches Jan 1; from Jan 9 it doesn't.
+    expect(measurementNear(rows, "2025-01-08")?.measuredOn).toBe("2025-01-01");
+    expect(measurementNear(rows, "2025-01-09")).toBeNull();
+  });
+});
 
 function protocol(overrides: {
   reserve?: () => Promise<string>;

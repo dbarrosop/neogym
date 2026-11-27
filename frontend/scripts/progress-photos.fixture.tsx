@@ -78,6 +78,7 @@ mock.module("@tanstack/react-router", () => ({
     children,
     to,
     params,
+    search: query,
     replace,
     className,
     ...props
@@ -85,19 +86,27 @@ mock.module("@tanstack/react-router", () => ({
     children: ReactNode;
     to: string;
     params?: { photoId: string };
+    search?: Record<string, string | undefined>;
     replace?: boolean;
     className?: string;
     "aria-current"?: "page";
-  }) => (
-    <a
-      href={to.replace("$photoId", params?.photoId ?? "")}
-      className={className}
-      data-replace={replace}
-      aria-current={props["aria-current"]}
-    >
-      {children}
-    </a>
-  ),
+    "aria-label"?: string;
+  }) => {
+    const defined = Object.entries(query ?? {}).filter(([, value]) => value !== undefined);
+    const suffix =
+      defined.length > 0 ? `?${new URLSearchParams(defined as [string, string][])}` : "";
+    return (
+      <a
+        href={`${to.replace("$photoId", params?.photoId ?? "")}${suffix}`}
+        className={className}
+        data-replace={replace}
+        aria-current={props["aria-current"]}
+        aria-label={props["aria-label"]}
+      >
+        {children}
+      </a>
+    );
+  },
 }));
 let auth: { user: { id: string } | null; isAuthenticated: boolean } = {
   user: null,
@@ -114,6 +123,7 @@ mock.module("@/lib/nhost/auth-provider", () => ({
 mock.module("@/components/progress/quick-entry-forms", () => ({
   QuickBodyMeasurementForm: () => null,
 }));
+mock.module("@/components/charts/trend-chart", () => ({ TrendChart: () => null }));
 mock.module("@/lib/progress-photos/prepare", () => ({
   preparePhoto: () => Promise.resolve(new Blob(["prepared fixture"], { type: "image/jpeg" })),
 }));
@@ -126,19 +136,31 @@ URL.revokeObjectURL = (url) => {
 };
 
 // --- Scripted backend ---------------------------------------------------------------
+const FRONT = { value: "front_a", comment: "Front A" };
+const BACK = { value: "back_b", comment: "Back B" };
+const SIDE = { value: "side", comment: "Side" };
 const photo = {
   id,
   takenOn: "2001-02-03",
   createdAt: "2026-11-25T10:00:00.123Z",
-  label: { value: "front_a", comment: "Front A" },
+  label: FRONT,
   file: { id, isUploaded: true },
 };
-const side = { value: "side", comment: "Side" };
-function fixturePhoto(number: number, takenOn = photo.takenOn) {
-  const id = `39d36419-4eb1-4190-8213-${String(number).padStart(12, "0")}`;
-  return { ...photo, id, takenOn, file: { id, isUploaded: true } };
+// Even fixtures are Front A, odd ones Back B: two sheet columns.
+function fixturePhoto(number: number, takenOn: string) {
+  const fixtureId = `39d36419-4eb1-4190-8213-${String(number).padStart(12, "0")}`;
+  const label = number % 2 === 0 ? FRONT : BACK;
+  return { ...photo, id: fixtureId, takenOn, label, file: { id: fixtureId, isUploaded: true } };
 }
-const pending = { ...fixturePhoto(15), file: null };
+const firstDay = [photo, ...Array.from({ length: 7 }, (_, i) => fixturePhoto(i + 1, "2001-02-03"))];
+const secondDay = Array.from({ length: 7 }, (_, i) => fixturePhoto(i + 8, "2001-02-02"));
+const pending = { ...fixturePhoto(15, "2001-02-02"), file: null };
+const olderPage = [fixturePhoto(16, "2001-02-02"), fixturePhoto(17, "2001-01-31")];
+const everyReady = [...firstDay, ...secondDay, ...olderPage];
+const measurements = [
+  { id: "m1", measuredOn: "2001-02-03", weightKg: 80, bodyFatPct: 18, notes: null },
+  { id: "m2", measuredOn: "2001-02-02", weightKg: 81.5, bodyFatPct: 19, notes: null },
+];
 let listFails = true;
 let nextPageFails = true;
 let lastFilter: string | undefined;
@@ -146,11 +168,11 @@ let fileHeld: ReturnType<typeof Promise.withResolvers<Response>> | undefined;
 let uploadHeld: ReturnType<typeof Promise.withResolvers<Response>> | undefined;
 const uploadedIds: string[] = [];
 let lastUpload: { bucket: unknown; name: string; type: string } | undefined;
-let reservations = 0;
+const reservations: { label: string; date: string; id: string }[] = [];
 let uploadSignal: AbortSignal | null | undefined;
 let checkingUpload = false;
-let mutationMode: "save" | "delete" = "save";
 let tookDelete = false;
+const updates: unknown[] = [];
 const operations: string[] = [];
 const imageRequests: string[] = [];
 let imageSignal: AbortSignal | null | undefined;
@@ -158,20 +180,36 @@ let imageSignal: AbortSignal | null | undefined;
 function json(data: unknown) {
   return Response.json({ data });
 }
-function historyResponse(where: {
+type Where = {
   userId: { _eq: string };
   file: unknown;
   labelValue?: { _eq: string };
+  takenOn?: { _eq: string };
   _or?: unknown[];
-}) {
+};
+function visible<T extends { id: string }>(rows: T[]) {
+  return rows.filter((row) => !(tookDelete && row.id === id));
+}
+function historyResponse(where: Where, limit: number) {
   assert.equal(where.userId._eq, auth.user?.id);
   assert.deepEqual(where.file, { isUploaded: { _eq: true } });
+  if (where.userId._eq !== "alice") {
+    return json({ progressPhotos: [] });
+  }
+  if (where.takenOn) {
+    // Body's latest check-in.
+    assert.equal(limit, 8);
+    const day = everyReady.filter((p) => p.takenOn === where.takenOn?._eq);
+    return json({ progressPhotos: visible(day) });
+  }
   if (listFails) {
     return new Response(null, { status: 500 });
   }
   lastFilter = where.labelValue?._eq;
-  if (lastFilter || where.userId._eq !== "alice") {
-    return json({ progressPhotos: [] });
+  if (lastFilter) {
+    // A label's whole history (limit 500) or its first gallery page.
+    const rows = visible(everyReady.filter((p) => p.label.value === lastFilter));
+    return json({ progressPhotos: rows.slice(0, limit) });
   }
   if (where._or) {
     assert.deepEqual(where._or[2], {
@@ -179,19 +217,13 @@ function historyResponse(where: {
       createdAt: { _eq: pending.createdAt },
       id: { _lt: pending.id },
     });
-    if (nextPageFails) {
-      return new Response(null, { status: 503 });
-    }
-    return json({ progressPhotos: [fixturePhoto(16), fixturePhoto(17, "2001-01-31")] });
+    return nextPageFails
+      ? new Response(null, { status: 503 })
+      : json({ progressPhotos: olderPage });
   }
-  return json({
-    progressPhotos: [
-      photo,
-      ...Array.from({ length: 14 }, (_, i) => fixturePhoto(i + 1)),
-      pending,
-      fixturePhoto(16),
-    ],
-  });
+  assert.equal(limit, 17);
+  const page = [...firstDay, ...secondDay, pending, ...olderPage.slice(0, 1)];
+  return json({ progressPhotos: visible(page) });
 }
 
 // The SDK captures `fetch` when the client is created, so install this before importing it.
@@ -210,9 +242,13 @@ function storageResponse(url: string, init: RequestInit): Promise<Response> {
     lastUpload = { bucket: init.body.get("bucket-id"), name: file.name, type: file.type };
     uploadSignal = init.signal;
     const held = uploadHeld;
+    uploadHeld = undefined;
     return metadata.text().then((text) => {
-      uploadedIds.push(JSON.parse(text).id);
-      return held?.promise ?? Response.json({ processedFiles: [{ id, isUploaded: true }] });
+      const uploaded = JSON.parse(text).id as string;
+      uploadedIds.push(uploaded);
+      return (
+        held?.promise ?? Response.json({ processedFiles: [{ id: uploaded, isUploaded: true }] })
+      );
     });
   }
   if (init.method === "DELETE") {
@@ -228,19 +264,34 @@ function storageResponse(url: string, init: RequestInit): Promise<Response> {
     )
   );
 }
+function detailResponse(photoId: string) {
+  if (photoId === id) {
+    return json({ progressPhoto: tookDelete ? null : photo });
+  }
+  // A reservation made by the check-in form.
+  const reserved = reservations.find((row) => row.id === photoId);
+  assert(reserved);
+  return json({
+    progressPhoto: {
+      ...photo,
+      id: photoId,
+      takenOn: reserved.date,
+      file: checkingUpload ? null : { id: photoId, isUploaded: true },
+    },
+  });
+}
 function graphqlResponse(init: RequestInit): Response {
   const { query, variables } = JSON.parse(String(init.body));
   const operation = getOperationAST(parse(query))?.name?.value ?? "";
   if (operation === "BodyMeasurements") {
-    return json({ bodyMeasurements: [] });
+    return json({ bodyMeasurements: auth.user?.id === "alice" ? measurements : [] });
   }
   assertPhotoRequest(init);
   operations.push(operation);
   switch (operation) {
     case "ProgressPhotoLabels":
-      return json({
-        progressPhotoLabels: [photo.label, { value: "back_b", comment: "Back B" }, side],
-      });
+      // Deliberately unsorted, with a value newer than the generated types.
+      return json({ progressPhotoLabels: [BACK, SIDE, FRONT] });
     case "ProgressPhotoSummary": {
       assert.deepEqual(variables.where, {
         userId: { _eq: auth.user?.id },
@@ -254,19 +305,17 @@ function graphqlResponse(init: RequestInit): Response {
       });
     }
     case "ProgressPhotoHistory":
-      return historyResponse(variables.where);
+      return historyResponse(variables.where, variables.limit);
     case "ProgressPhotoDetails":
-      return json({
-        progressPhoto: tookDelete ? null : { ...photo, file: checkingUpload ? null : photo.file },
-      });
-    case "ReserveProgressPhoto":
-      assert.equal(variables.label, "side");
-      reservations++;
-      return json({ insertProgressPhoto: { id } });
+      return detailResponse(variables.id);
+    case "ReserveProgressPhoto": {
+      const reserved = `5a5a5a5a-0000-4000-8000-${String(reservations.length + 1).padStart(12, "0")}`;
+      reservations.push({ label: variables.label, date: variables.date, id: reserved });
+      return json({ insertProgressPhoto: { id: reserved } });
+    }
     case "UpdateProgressPhoto":
-      assert.equal(mutationMode, "save");
-      assert.deepEqual(variables, { id, label: "side", date: "2001-02-03" });
-      return json({ updateProgressPhoto: { id } });
+      updates.push(variables);
+      return json({ updateProgressPhoto: { id: variables.id } });
     default:
       throw new Error(`Unexpected operation ${operation}`);
   }
@@ -313,7 +362,7 @@ const { Route: Body } = await import("@/routes/_authed/progress/body");
 const { Route: PhotoLayout } = await import("@/routes/_authed/progress/body/photos");
 const { Route: Gallery } = await import("@/routes/_authed/progress/body/photos/index");
 const { Route: New } = await import("@/routes/_authed/progress/body/photos/new");
-const { Route: Edit } = await import("@/routes/_authed/progress/body/photos/$photoId_.edit");
+const { Route: Compare } = await import("@/routes/_authed/progress/body/photos/compare");
 const { Route: Viewer } = await import("@/routes/_authed/progress/body/photos/$photoId");
 const mount = document.createElement("div");
 document.body.append(mount);
@@ -326,12 +375,14 @@ function view(route: { options: { component?: unknown } }) {
   const Component = route.options.component as () => ReactNode;
   return <Component />;
 }
-async function renderPage(path: string, route: Parameters<typeof view>[0], keepSearch = false) {
+async function renderPage(
+  path: string,
+  route: Parameters<typeof view>[0],
+  nextSearch: Record<string, unknown> = {},
+) {
   pathname = path;
   outlet = view(route);
-  if (!keepSearch) {
-    search = {};
-  }
+  search = nextSearch;
   await act(() => {
     root.render(
       <QueryClientProvider client={queryClient}>
@@ -355,8 +406,8 @@ async function settled(assertion: () => void) {
   }
   throw error instanceof Error ? error : new Error("The view did not settle");
 }
-function exactText(text: string, tag = "button") {
-  const element = [...document.querySelectorAll<HTMLElement>(tag)].find(
+function exactText(text: string, tag = "button", scope: ParentNode = document) {
+  const element = [...scope.querySelectorAll<HTMLElement>(tag)].find(
     (node) => node.textContent === text,
   );
   assert(element, `Couldn't find ${text}`);
@@ -375,120 +426,198 @@ function photoQueries(owner?: string) {
 function count(operation: string) {
   return operations.filter((name) => name === operation).length;
 }
-async function selectLabel(select: HTMLSelectElement, value: string) {
+async function choose(select: HTMLSelectElement, value: string) {
   await act(() => {
     select.value = value;
     select.dispatchEvent(new window.Event("change", { bubbles: true }));
   });
 }
-async function submitForm() {
+async function submit(form = mount.querySelector("form")) {
   await act(() => {
-    const form = mount.querySelector("form");
     assert(form);
     form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
   });
 }
-async function chooseFile() {
-  const chooser = mount.querySelector<HTMLInputElement>("input[type=file]");
-  assert(chooser);
+async function pickFile(labelName: string) {
+  const input = mount.querySelector<HTMLInputElement>(`input[aria-label="${labelName} photo"]`);
+  assert(input, `No ${labelName} slot`);
   await act(async () => {
     const selected = new File(["fixture"], "synthetic.jpg", { type: "image/jpeg" });
-    Object.defineProperty(chooser, "files", {
-      configurable: true,
-      value: { item: () => selected },
-    });
-    chooser.dispatchEvent(new window.Event("change", { bubbles: true }));
+    Object.defineProperty(input, "files", { configurable: true, value: { item: () => selected } });
+    input.dispatchEvent(new window.Event("change", { bubbles: true }));
     await Bun.sleep(5);
   });
-  await settled(() => assert(mount.querySelector('img[alt="Preview for upload"]')));
-  return chooser;
+  await settled(() => assert(input.closest("label")?.querySelector("img[src^='blob:']")));
+  return input;
 }
+const sheet = () => mount.querySelector('ol[aria-label="Progress photos"]');
+// "photo" for a tile; an Add slot's link otherwise.
+const rowCells = (row: Element | null | undefined) =>
+  [...(row?.querySelectorAll(":scope > ul > li") ?? [])].map((cell) => {
+    const href = cell.querySelector("a")?.getAttribute("href") ?? "";
+    return href.includes("/new") ? href : "photo";
+  });
 
-// --- Body summary card: owner-scoped count and date, no list or bytes ---------------
+// --- Body: the photo card sits beside the measurements with the latest check-in -----
 await act(() => setOwner("alice"));
 await renderPage("/progress/body", Body);
-const summary = () =>
+const card = () =>
   [...mount.querySelectorAll("h2")]
     .find((heading) => heading.textContent === "Progress photos")
     ?.closest("section");
-assert.equal(exactText("View progress photos", "a").getAttribute("href"), "/progress/body/photos");
-await settled(() => assert(summary()?.textContent?.includes("17 photos")));
-assert.equal(summary()?.querySelector("time")?.dateTime, photo.takenOn);
-assert.deepEqual(operations, ["ProgressPhotoSummary"], "the card reads only the aggregate");
-assert(queryClient.getQueryData(photoKeys.summary("alice")));
+await settled(() => assert(card()?.textContent?.includes("17 photos")));
+assert.equal(card()?.querySelector("time")?.dateTime, photo.takenOn);
+assert.equal(
+  exactText("View all progress photos", "a").getAttribute("href"),
+  "/progress/body/photos",
+);
+assert.equal(exactText("Add photos", "a").getAttribute("href"), "/progress/body/photos/new");
+await settled(() => assert.equal(card()?.querySelectorAll("img[src^='blob:']").length, 4));
+assert.deepEqual(
+  [...(card()?.querySelectorAll("li a") ?? [])].map((node) => node.getAttribute("aria-label")),
+  ["Front A, Feb 3, 2001", "Front A, Feb 3, 2001", "Front A, Feb 3, 2001", "Front A, Feb 3, 2001"],
+  "front labels first",
+);
+assert(
+  !card()?.previousElementSibling?.textContent?.includes("Weight & body fat"),
+  "the card no longer splits the trend from its table",
+);
 await act(() => setOwner("bob"));
-await settled(() => assert(summary()?.textContent?.includes("No photos yet")));
-assert(!summary()?.querySelector("time"));
+await settled(() => assert(card()?.textContent?.includes("No photos yet")));
+assert(!card()?.querySelector("time, img"));
 assert.equal(photoQueries("alice").length, 0, "an account switch drops the previous owner");
 await act(() => setOwner("alice"));
 assert.deepEqual(
-  __testing.trailFor(`/progress/body/photos/${id}/edit`).map((crumb) => crumb.label),
-  ["Progress", "Body", "Progress photos", "Photo", "Edit"],
+  __testing.trailFor("/progress/body/photos/compare").map((crumb) => crumb.label),
+  ["Progress", "Body", "Progress photos", "Compare"],
+);
+assert.deepEqual(
+  __testing.trailFor(`/progress/body/photos/${id}`).map((crumb) => crumb.label),
+  ["Progress", "Body", "Progress photos", "Photo"],
 );
 
-// --- Gallery: retry, paging, date rows, private thumbnails --------------------------
+// --- Gallery: contact sheet rows and columns, retry and paging ----------------------
 await renderPage("/progress/body/photos", Gallery);
 await settled(() => assert(mount.textContent?.includes("Couldn't load photos")));
-assert.equal(exactText("Body", "nav a").getAttribute("aria-current"), "page");
 listFails = false;
 await act(() => exactText("Retry").click());
-const timeline = () => mount.querySelector('ol[aria-label="Progress photos"]');
-await settled(() => assert.equal(timeline()?.querySelectorAll("a").length, 15));
+await settled(() => assert.equal(sheet()?.children.length, 2));
 assert.deepEqual(
-  [...mount.querySelectorAll("time")].map((time) => time.dateTime),
-  [photo.takenOn],
+  [...mount.querySelectorAll("fieldset button")].map((chip) => chip.textContent),
+  ["All", "Front A", "Side", "Back B"],
+  "labels read front, side, back",
+);
+assert.deepEqual(rowCells(sheet()?.children[0]), ["photo", "photo"], "Front A then Back B");
+assert(sheet()?.children[0]?.textContent?.includes("80 kg · 18.0 %"), "same-day weight");
+assert.equal(
+  sheet()?.children[0]?.querySelector("a")?.getAttribute("aria-label"),
+  "Front A, Feb 3, 2001, 4 photos",
+  "a cell names its label, date and count",
+);
+assert.equal(
+  sheet()?.children[0]?.querySelectorAll("a")[1]?.getAttribute("aria-label"),
+  "Back B, Feb 3, 2001, 4 photos",
+);
+assert.equal(
+  exactText("Compare", "a").closest("a")?.getAttribute("href"),
+  "/progress/body/photos/compare?label=front_a",
 );
 await act(() => exactText("Load older photos").click());
 await settled(() => assert(mount.textContent?.includes("Couldn't load older photos")));
-assert.equal(timeline()?.querySelectorAll("a").length, 15, "a failed page keeps the photos");
+assert.equal(sheet()?.children.length, 2, "a failed page keeps the photos");
 nextPageFails = false;
 await act(() => exactText("Load older photos").click());
-await settled(() => assert.equal(timeline()?.children.length, 2));
+await settled(() => assert.equal(sheet()?.children.length, 3));
 assert.deepEqual(
-  [...mount.querySelectorAll("time")].map((time) => time.dateTime),
-  [photo.takenOn, "2001-01-31"],
+  [...(sheet()?.querySelectorAll("h2 time") ?? [])].map((time) => time.getAttribute("datetime")),
+  ["2001-02-03", "2001-02-02", "2001-01-31"],
 );
-assert.equal(timeline()?.firstElementChild?.querySelectorAll("a").length, 16);
-assert.equal(timeline()?.lastElementChild?.querySelectorAll("a").length, 1);
-await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 17));
+assert.deepEqual(
+  rowCells(sheet()?.children[2]),
+  ["/progress/body/photos/new?date=2001-01-31&label=front_a", "photo"],
+  "a missing label is an Add slot for that date",
+);
+await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 5));
 assert(
   imageRequests.every((url) => url.includes("w=480")),
   "tiles use the private transform",
 );
 
-// Label filter: a catalog value newer than the generated types, kept in the URL.
-const filter = mount.querySelector("select");
-assert(filter);
-await selectLabel(filter, "side");
+// Chips: one label over time; a catalog value newer than the types still filters.
+await act(() => exactText("Side").click());
 assert.deepEqual(search, { label: "side" });
 assert.equal(searchChanges.at(-1)?.replace, true);
 await settled(() => assert(mount.textContent?.includes("No Side photos")));
-assert.equal(lastFilter, "side", "a newer catalog value must remain a GraphQL filter");
+assert.equal(lastFilter, "side");
 await act(() => exactText("Show all photos").click());
 assert.deepEqual(search, {});
-await settled(() => assert.equal(timeline()?.querySelectorAll("a").length, 17));
+await act(() => exactText("Front A").click());
+await settled(() => assert(mount.querySelector('ul[aria-label="Front A photos"]')));
+assert.equal(mount.querySelectorAll('ul[aria-label="Front A photos"] > li').length, 9);
+await act(() => exactText("All").click());
 
 // Hiding the tab no longer tears anything down.
 const imagesBeforeHide = imageRequests.length;
 await act(() => visibility(true));
-assert.equal(timeline()?.querySelectorAll("img[src^='blob:']").length, 17);
+assert.equal(sheet()?.children.length, 3);
 await act(() => visibility(false));
 assert.equal(imageRequests.length, imagesBeforeHide);
 
-// --- Viewer, then Back: lists and thumbnails come from the in-memory cache ----------
+// --- Viewer: label title, older/newer, keyboard, edit dialog; Back reuses the cache -
 const historyReads = count("ProgressPhotoHistory");
 await renderPage(`/progress/body/photos/${id}`, Viewer);
 await settled(() =>
   assert(mount.querySelector("img[src^='blob:'][alt^='Front A progress photo']")),
 );
+assert.equal(mount.querySelector("h1")?.textContent, "Front A");
+assert(!mount.querySelector("nav a[aria-current]"), "no section tabs on a photo");
 assert(!imageRequests.at(-1)?.includes("w="), "the viewer reads the prepared original");
-assert.equal(exactText("Edit", "a").dataset["replace"], "true");
+await settled(() => assert(mount.textContent?.includes("9 of 9")));
+const older = mount.querySelector<HTMLAnchorElement>('nav[aria-label="Front A photos"] a');
+assert.equal(older?.getAttribute("href"), `/progress/body/photos/${firstDay[2]?.id}`);
+assert.equal(older?.dataset["replace"], "true");
+assert(exactText("Newer", "button").hasAttribute("disabled"), "the newest has no newer photo");
+assert.equal(
+  exactText("Compare", "a").closest("a")?.getAttribute("href"),
+  `/progress/body/photos/compare?label=front_a&to=${id}`,
+);
+await act(() => window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft" })));
+assert.deepEqual(navigations.pop(), {
+  to: "/progress/body/photos/$photoId",
+  params: { photoId: firstDay[2]?.id },
+  replace: true,
+});
+await act(() => exactText("Edit").click());
+const editDialog = () => document.querySelector('[role="dialog"]');
+await settled(() => assert(editDialog()?.querySelector("select")));
+assert(editDialog()?.querySelector("img"), "the photo stays visible while editing");
+const editSelect = editDialog()?.querySelector("select");
+assert(editSelect);
+await choose(editSelect, "side");
+await submit(editDialog()?.querySelector("form"));
+await settled(() => assert(!editDialog()));
+assert.deepEqual(updates, [{ id, label: "side", date: photo.takenOn }]);
+assert.equal(navigations.length, 0, "editing stays on the photo");
 const imagesBeforeBack = imageRequests.length;
 await renderPage("/progress/body/photos", Gallery);
-assert.equal(timeline()?.querySelectorAll("a").length, 17, "Back keeps the loaded pages");
-await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 17));
-assert.equal(count("ProgressPhotoHistory"), historyReads, "a fresh list is not refetched");
+assert.equal(sheet()?.children.length, 3, "Back keeps the loaded pages");
+await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 5));
 assert.equal(imageRequests.length, imagesBeforeBack, "cached thumbnails are not downloaded again");
+assert(count("ProgressPhotoHistory") > historyReads, "the edit refreshed the (stale) rows");
+
+// --- Compare: oldest vs newest of a label, change in weight and body fat ------------
+await renderPage("/progress/body/photos/compare", Compare, { label: "front_a" });
+await settled(() => assert(mount.textContent?.includes("Time between")));
+const [before, after] = [...mount.querySelectorAll("select")];
+assert.equal(before?.value, olderPage[0]?.id, "before defaults to the oldest");
+assert.equal(after?.value, id, "after defaults to the newest");
+assert(mount.textContent?.includes("1 day"));
+assert(mount.textContent?.includes("−1.5 kg"), "weight change between the dates");
+assert(mount.textContent?.includes("−1.0 %"), "body-fat change between the dates");
+assert(mount.querySelector('input[type="range"]'), "the phone slider");
+assert(before);
+await choose(before, firstDay[2]?.id ?? "");
+assert.deepEqual(search, { label: "front_a", from: firstDay[2]?.id, to: id });
 
 // --- Sign-out with an image in flight: cancelled, unmounted and dropped -------------
 queryClient.removeQueries({ queryKey: photoKeys.bytes("alice", id, "full") });
@@ -510,90 +639,86 @@ assert.equal(allocated, beforeLate, "a late response creates no image URL");
 assert.equal(revoked.length, allocated, "every displayed image URL was revoked");
 fileHeld = undefined;
 
-// --- Create: preview survives a hidden tab; a lost upload reconciles the same reservation
+// --- Check-in: one date, a photo per label, a lost upload retried without re-reserving
 await act(() => setOwner("alice"));
 await renderPage("/progress/body/photos", Gallery);
-await settled(() => assert.equal(timeline()?.querySelectorAll("a").length, 15));
-await renderPage("/progress/body/photos/new", New);
-assert.equal(
-  mount.querySelector<HTMLInputElement>("input[type=date]")?.value,
-  new Date().toLocaleDateString("en-CA"),
+await settled(() => assert.equal(sheet()?.children.length, 2));
+await renderPage("/progress/body/photos/new", New, { date: "2001-02-03", label: "back_b" });
+assert.equal(mount.querySelector<HTMLInputElement>("input[type=date]")?.value, "2001-02-03");
+await settled(() => assert.equal(mount.querySelectorAll("input[type=file]").length, 3));
+assert.deepEqual(
+  [...mount.querySelectorAll("input[type=file]")].map((input) => input.getAttribute("aria-label")),
+  ["Front A photo", "Side photo", "Back B photo"],
 );
-const chooser = await chooseFile();
-const preview = mount.querySelector('img[alt="Preview for upload"]');
+assert.equal(document.activeElement?.getAttribute("aria-label"), "Back B photo", "requested slot");
+const frontInput = await pickFile("Front A");
+await pickFile("Side");
 await act(() => visibility(true));
-assert.equal(mount.querySelector('img[alt="Preview for upload"]'), preview, "draft kept");
-assert(chooser.isConnected);
+assert.equal(
+  mount.querySelectorAll("label img[src^='blob:']").length,
+  2,
+  "drafts survive a hidden tab",
+);
+assert(frontInput.isConnected);
 await act(() => visibility(false));
-const newLabel = mount.querySelector("select");
-assert(newLabel);
-await selectLabel(newLabel, "side");
-assert(!exactText("Upload photo").hasAttribute("disabled"));
-const uploading = Promise.withResolvers<Response>();
-uploadHeld = uploading;
+assert.equal(exactText("Upload 2 photos").hasAttribute("disabled"), false);
+const lost = Promise.withResolvers<Response>();
+uploadHeld = lost;
 checkingUpload = true;
-await submitForm();
+await submit();
 await settled(() => assert.equal(uploadedIds.length, 1));
 assert.deepEqual(lastUpload, {
   bucket: "progress_photos",
   name: "progress-photo.jpg",
   type: "image/jpeg",
 });
-await act(() => uploading.resolve(new Response(null, { status: 500 })));
+assert(mount.querySelector<HTMLInputElement>("input[type=date]")?.disabled, "date locks on upload");
+await act(() => lost.resolve(new Response(null, { status: 500 })));
 await settled(() => assert(!exactText("Try again").hasAttribute("disabled")));
 assert(mount.textContent?.includes("didn't finish uploading"));
-uploadHeld = undefined;
-await submitForm();
-await settled(() => assert.equal(navigations.length, 1));
-assert.equal(reservations, 1, "a retry never reserves again");
-assert.deepEqual(uploadedIds, [id, id]);
-assert.deepEqual(navigations.pop(), {
-  to: "/progress/body/photos/$photoId",
-  params: { photoId: id },
-  replace: true,
-});
+assert(mount.textContent?.includes("Uploaded"), "the other label still uploaded");
+assert.equal(exactText("Done").textContent, "Done");
+assert.deepEqual(
+  reservations.map(({ label, date }) => [label, date]),
+  [
+    ["front_a", "2001-02-03"],
+    ["side", "2001-02-03"],
+  ],
+);
 assert(queryClient.getQueryState(photoKeys.list("alice", ""))?.isInvalidated, "list refreshes");
+await submit();
+await settled(() => assert.equal(navigations.length, 1));
+assert.equal(reservations.length, 2, "a retry never reserves again");
+assert.deepEqual(uploadedIds, [reservations[0]?.id, reservations[1]?.id, reservations[0]?.id]);
+assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
 checkingUpload = false;
 
 // Leaving the form stops its in-flight upload; nothing navigates afterwards. (The
 // scripted navigation doesn't unmount, so leave through the gallery like the router.)
 await renderPage("/progress/body/photos", Gallery);
 await renderPage("/progress/body/photos/new", New);
-await chooseFile();
-const formLabel = mount.querySelector("select");
-assert(formLabel);
-await selectLabel(formLabel, "side");
+await pickFile("Front A");
 const abandoned = Promise.withResolvers<Response>();
 uploadHeld = abandoned;
-await submitForm();
-await settled(() => assert.equal(uploadedIds.length, 3));
+await submit();
+await settled(() => assert.equal(uploadedIds.length, 4));
 const abandonedSignal = uploadSignal;
 await renderPage("/progress/body/photos", Gallery);
 assert(abandonedSignal?.aborted, "route exit aborts the upload");
 await act(async () => {
-  abandoned.resolve(Response.json({ processedFiles: [{ id, isUploaded: true }] }));
+  abandoned.resolve(
+    Response.json({ processedFiles: [{ id: reservations[2]?.id, isUploaded: true }] }),
+  );
   await Bun.sleep(10);
 });
 assert.equal(navigations.length, 0);
-uploadHeld = undefined;
 await renderPage("/progress/body/photos/new", New);
 await act(() => exactText("Cancel").click());
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
 
-// --- Edit: save, then delete with a lost response reconciled by reading the photo ---
-await renderPage(`/progress/body/photos/${id}/edit`, Edit);
-await settled(() => assert(!exactText("Save changes").hasAttribute("disabled")));
-const editLabel = mount.querySelector("select");
-assert(editLabel);
-await selectLabel(editLabel, "side");
-await submitForm();
-await settled(() => assert.equal(navigations.length, 1));
-assert.deepEqual(navigations.pop(), {
-  to: "/progress/body/photos/$photoId",
-  params: { photoId: id },
-  replace: true,
-});
-mutationMode = "delete";
+// --- Delete from the viewer: a lost response is reconciled by reading the photo -----
+await renderPage(`/progress/body/photos/${id}`, Viewer);
+await settled(() => assert(mount.querySelector("h1")));
 await act(() => exactText("Delete photo").click());
 const dialog = document.querySelector('[role="alertdialog"]');
 assert(dialog);
@@ -602,22 +727,26 @@ assert.equal(
   "Delete this progress photo?",
 );
 assert(dialog.textContent?.includes("This can't be undone."));
-const confirmDelete = [...dialog.querySelectorAll("button")].find(
-  (button) => button.textContent === "Delete photo",
-);
-assert(confirmDelete);
-await act(() => confirmDelete.click());
+await act(() => exactText("Delete photo", "button", dialog).click());
 await settled(() => assert.equal(navigations.length, 1));
 assert(tookDelete);
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
+await renderPage("/progress/body/photos", Gallery);
+await settled(() => assert(sheet()));
+for (const kind of ["list", "pose", "day"]) {
+  const stale = queryClient
+    .getQueryCache()
+    .findAll({ queryKey: ["progress_photos", "alice", kind] })
+    .filter((query) => JSON.stringify(query.state.data ?? null).includes(id));
+  assert.equal(stale.length, 0, `no ${kind} list keeps the deleted photo`);
+}
 assert.equal(
-  queryClient.getQueryCache().findAll({ queryKey: photoKeys.lists("alice") }).length,
+  queryClient
+    .getQueryCache()
+    .findAll({ queryKey: photoKeys.photo("alice", id) })
+    .filter((query) => query.state.data).length,
   0,
-  "the gallery reloads instead of flashing the deleted photo",
-);
-assert.equal(
-  queryClient.getQueryCache().findAll({ queryKey: photoKeys.photo("alice", id) }).length,
-  0,
+  "the deleted photo's row and bytes are forgotten",
 );
 
 // --- Another account sees none of it ------------------------------------------------

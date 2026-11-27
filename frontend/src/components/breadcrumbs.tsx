@@ -55,11 +55,8 @@ const ROUTES: Record<string, RouteDef> = {
   "/progress/body/$id/edit": { label: "Edit", parent: "/progress/body/$id" },
   "/progress/body/photos": { label: "Progress photos", parent: "/progress/body" },
   "/progress/body/photos/new": { label: "New", parent: "/progress/body/photos" },
+  "/progress/body/photos/compare": { label: "Compare", parent: "/progress/body/photos" },
   "/progress/body/photos/$photoId": { label: "Photo", parent: "/progress/body/photos" },
-  "/progress/body/photos/$photoId/edit": {
-    label: "Edit",
-    parent: "/progress/body/photos/$photoId",
-  },
   "/progress/energy": { label: "Energy", parent: "/progress" },
   "/progress/energy/new": { label: "New", parent: "/progress/energy" },
   "/progress/energy/$id": { label: "Day", parent: "/progress/energy" },

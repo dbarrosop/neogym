@@ -919,72 +919,78 @@ These are retained results, not a new run of the browser workflows.
 
 <a id="desktop-progress-photos"></a>
 
-## Upload, filter, correct and delete private progress photos · desktop
+## Check in, browse, compare, correct and delete private progress photos · desktop
 
 **Status:** passed
 
 1. Open /progress/body
-2. Open the photo summary card on Body and go to the empty history
-3. Choose a synthetic PNG, select Front A, backdate it and upload
-4. Upload a second illustration with the same date and label, then return to the gallery
-5. Open the newer photo; edit its date and label without choosing a new image
-6. Check that the edited photo moves to the newest date row, then filter by Back B
-7. Open the filtered photo, edit it, and confirm Delete photo
-8. Return to Body and confirm its photo count and latest date
-9. Open /progress/body
+2. Open the photo card on Body and go to the empty history
+3. Check in Front A and Back A illustrations on one earlier date
+4. Check in a later Front A only
+5. Open the newer Front A, step to the older one and back
+6. Correct the newer photo's date in the edit dialog
+7. Compare the older and newer Front A photos
+8. Filter the gallery to Front A
+9. Open /progress/body/photos
+10. Open the older Front A and confirm Delete photo
+11. Return to Body and check its photo card
+12. Open /progress/body
 
 **Verified outcomes**
 
-- A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form
-- The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo
-- Body shows one ready photo and its date after the deletion
-- A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains
+- A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one
+- The edit changed only the date, keeping the same file ID and label
+- Body shows two ready photos, the latest date and that date's photo
+- A fresh backend read confirms that the deleted photo is inaccessible and the other two remain
 - The runner removed the remaining synthetic upload through Storage after capture
 
 **Screenshots**
 
-- [Progress photos: empty private history and the Add photo action](screenshots/desktop-progress-photos-empty.png)
-- [Add photo: preview a generated illustration and choose an earlier date](screenshots/desktop-progress-photos-prepared.png)
-- [Photo viewer: the uploaded illustration with its label and date taken](screenshots/desktop-progress-photos-viewer.png)
-- [Timeline: two distinct uploads on a single date row](screenshots/desktop-progress-photos-duplicates.png)
-- [Edit photo: correct the date and label without replacing the image](screenshots/desktop-progress-photos-edit.png)
-- [Gallery: the Back B filter shows only the corrected photo](screenshots/desktop-progress-photos-filtered.png)
-- [Delete photo: explicit confirmation before removing the selected image](screenshots/desktop-progress-photos-confirm.png)
-- [Gallery: the other Front A photo remains after deletion](screenshots/desktop-progress-photos-deleted.png)
-- [Timeline: newest date first, with one row per photo date](screenshots/desktop-progress-photos-timeline.png)
+- [Progress photos: empty private history and the Add photos action](screenshots/desktop-progress-photos-empty.png)
+- [Add photos: one date, with a generated illustration in the Front A and Back A slots](screenshots/desktop-progress-photos-prepared.png)
+- [Photo viewer: the label as title, then older and newer Front A photos](screenshots/desktop-progress-photos-viewer.png)
+- [Edit details: correct the date without replacing the image](screenshots/desktop-progress-photos-edit.png)
+- [Gallery: the Front A filter shows that label over time](screenshots/desktop-progress-photos-filtered.png)
+- [Delete photo: explicit confirmation before removing the image](screenshots/desktop-progress-photos-confirm.png)
+- [Gallery: the first date keeps its Back A, with an Add slot where Front A was](screenshots/desktop-progress-photos-deleted.png)
+- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/desktop-progress-photos-timeline.png)
+- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/desktop-progress-photos-compare.png)
 
 <a id="mobile-progress-photos"></a>
 
-## Upload, filter, correct and delete private progress photos · mobile
+## Check in, browse, compare, correct and delete private progress photos · mobile
 
 **Status:** passed
 
 1. Open /progress/body
-2. Open the photo summary card on Body and go to the empty history
-3. Choose a synthetic PNG, select Front A, backdate it and upload
-4. Upload a second illustration with the same date and label, then return to the gallery
-5. Open the newer photo; edit its date and label without choosing a new image
-6. Check that the edited photo moves to the newest date row, then filter by Back B
-7. Open the filtered photo, edit it, and confirm Delete photo
-8. Return to Body and confirm its photo count and latest date
-9. Open /progress/body
+2. Open the photo card on Body and go to the empty history
+3. Check in Front A and Back A illustrations on one earlier date
+4. Check in a later Front A only
+5. Open the newer Front A, step to the older one and back
+6. Correct the newer photo's date in the edit dialog
+7. Compare the older and newer Front A photos
+8. Filter the gallery to Front A
+9. Open /progress/body/photos
+10. Open the older Front A and confirm Delete photo
+11. Return to Body and check its photo card
+12. Open /progress/body
 
 **Verified outcomes**
 
-- A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form
-- The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo
-- Body shows one ready photo and its date after the deletion
-- A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains
+- A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one
+- The edit changed only the date, keeping the same file ID and label
+- Body shows two ready photos, the latest date and that date's photo
+- A fresh backend read confirms that the deleted photo is inaccessible and the other two remain
 - The runner removed the remaining synthetic upload through Storage after capture
 
 **Screenshots**
 
-- [Progress photos: empty private history and the Add photo action](screenshots/mobile-progress-photos-empty.png)
-- [Add photo: preview a generated illustration and choose an earlier date](screenshots/mobile-progress-photos-prepared.png)
-- [Photo viewer: the uploaded illustration with its label and date taken](screenshots/mobile-progress-photos-viewer.png)
-- [Timeline: two distinct uploads on a single date row](screenshots/mobile-progress-photos-duplicates.png)
-- [Edit photo: correct the date and label without replacing the image](screenshots/mobile-progress-photos-edit.png)
-- [Gallery: the Back B filter shows only the corrected photo](screenshots/mobile-progress-photos-filtered.png)
-- [Delete photo: explicit confirmation before removing the selected image](screenshots/mobile-progress-photos-confirm.png)
-- [Gallery: the other Front A photo remains after deletion](screenshots/mobile-progress-photos-deleted.png)
-- [Timeline: newest date first, with one row per photo date](screenshots/mobile-progress-photos-timeline.png)
+- [Progress photos: empty private history and the Add photos action](screenshots/mobile-progress-photos-empty.png)
+- [Add photos: one date, with a generated illustration in the Front A and Back A slots](screenshots/mobile-progress-photos-prepared.png)
+- [Photo viewer: the label as title, then older and newer Front A photos](screenshots/mobile-progress-photos-viewer.png)
+- [Edit details: correct the date without replacing the image](screenshots/mobile-progress-photos-edit.png)
+- [Gallery: the Front A filter shows that label over time](screenshots/mobile-progress-photos-filtered.png)
+- [Delete photo: explicit confirmation before removing the image](screenshots/mobile-progress-photos-confirm.png)
+- [Gallery: the first date keeps its Back A, with an Add slot where Front A was](screenshots/mobile-progress-photos-deleted.png)
+- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/mobile-progress-photos-timeline.png)
+- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/mobile-progress-photos-compare.png)
