@@ -948,13 +948,13 @@ These are retained results, not a new run of the browser workflows.
 
 - [Progress photos: empty private history and the Add photos action](screenshots/desktop-progress-photos-empty.png)
 - [Add photos: one date, with a generated illustration in the Front A and Back A slots](screenshots/desktop-progress-photos-prepared.png)
+- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/desktop-progress-photos-timeline.png)
 - [Photo viewer: the label as title, then older and newer Front A photos](screenshots/desktop-progress-photos-viewer.png)
 - [Edit details: correct the date without replacing the image](screenshots/desktop-progress-photos-edit.png)
+- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/desktop-progress-photos-compare.png)
 - [Gallery: the Front A filter shows that label over time](screenshots/desktop-progress-photos-filtered.png)
 - [Delete photo: explicit confirmation before removing the image](screenshots/desktop-progress-photos-confirm.png)
 - [Gallery: the first date keeps its Back A, with an Add slot where Front A was](screenshots/desktop-progress-photos-deleted.png)
-- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/desktop-progress-photos-timeline.png)
-- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/desktop-progress-photos-compare.png)
 
 <a id="mobile-progress-photos"></a>
 
@@ -987,10 +987,10 @@ These are retained results, not a new run of the browser workflows.
 
 - [Progress photos: empty private history and the Add photos action](screenshots/mobile-progress-photos-empty.png)
 - [Add photos: one date, with a generated illustration in the Front A and Back A slots](screenshots/mobile-progress-photos-prepared.png)
+- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/mobile-progress-photos-timeline.png)
 - [Photo viewer: the label as title, then older and newer Front A photos](screenshots/mobile-progress-photos-viewer.png)
 - [Edit details: correct the date without replacing the image](screenshots/mobile-progress-photos-edit.png)
+- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/mobile-progress-photos-compare.png)
 - [Gallery: the Front A filter shows that label over time](screenshots/mobile-progress-photos-filtered.png)
 - [Delete photo: explicit confirmation before removing the image](screenshots/mobile-progress-photos-confirm.png)
 - [Gallery: the first date keeps its Back A, with an Add slot where Front A was](screenshots/mobile-progress-photos-deleted.png)
-- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/mobile-progress-photos-timeline.png)
-- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/mobile-progress-photos-compare.png)

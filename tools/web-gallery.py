@@ -206,12 +206,19 @@ def render_workflows(output, manifest):
     lines = ["# Recorded web walkthroughs", "", "Generated from `capture-manifest.json`; do not edit by hand.", "",
              "[Gallery](gallery.html) · [Capture instructions](capture.md)", "",
              "These are retained results, not a new run of the browser workflows."]
+    # Each workflow's frames in gallery-layout (catalog) order. The manifest appends frames
+    # a later refresh adds, so its order alone can put them after the walkthrough's end.
     row_frames = {}
     for _, _, rows in layout():
         for row in rows:
-            row_frames.setdefault(row["source"], set()).update(row.get("images", []))
+            frames = row_frames.setdefault(row["source"], [])
+            frames += [frame for frame in row.get("images", []) if frame not in frames]
+    by_id = {image["id"]: image for image in manifest["screenshots"]}
     for workflow in manifest["workflows"]:
         identifier = workflow["id"]
+        images = [by_id[frame] for frame in row_frames.get(identifier, []) if frame in by_id]
+        images += [image for image in manifest["screenshots"]
+                   if image["workflow"] == identifier and image not in images]
         lines += ["", '<a id="' + html.escape(identifier, quote=True) + '"></a>', "",
                   "## " + workflow["title"], "", "**Status:** " + workflow["status"], ""]
         lines += [str(index) + ". " + step for index, step in enumerate(workflow["steps"], 1)]
@@ -219,8 +226,7 @@ def render_workflows(output, manifest):
         lines += ["", "**Screenshots**", ""] + [
             "- [" + image["title"] + "](" + image["file"] + ")"
             + (" (reused view)" if image["workflow"] != identifier else "")
-            for image in manifest["screenshots"]
-            if image["workflow"] == identifier or image["id"] in row_frames[identifier]]
+            for image in images]
     (Path(output) / "workflows.md").write_text("\n".join(lines) + "\n")
 
 

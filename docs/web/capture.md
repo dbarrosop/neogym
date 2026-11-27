@@ -260,11 +260,12 @@ cross-browser guarantee.
 | `frontend/scripts/gallery/capture.ts` | CLI, isolated Chromium contexts, local OTP setup and provenance |
 | `frontend/scripts/gallery/profile.json` | Fixed browser time, raster settings, fixture version and reserved fictional account |
 | `frontend/scripts/gallery/seed.ts`, `seed.sql` | Workspace-scoped reset, account and energy fixture |
-| `frontend/scripts/gallery/backend.ts` | Fixed local endpoints, user GraphQL requests and fresh MailHog OTP |
+| `frontend/scripts/gallery/backend.ts` | Fixed local endpoints, user GraphQL requests, fresh MailHog OTP and deletion of the walkthrough's own photo files through local Storage |
 | `frontend/scripts/gallery/fixtures.ts` | Private user-role fixture mutations and relative dates |
 | `frontend/scripts/gallery/driver.ts` | Readiness/network checks, screenshots and manifest updates |
 | `frontend/scripts/gallery/workflows.ts` | Real UI actions and fresh backend outcome checks |
+| `frontend/scripts/gallery/progress-photos.ts` | Progress-photo walkthrough: generated illustrations, owner-role photo checks and Storage teardown of its uploads |
 | `tools/gallery.py` | Shared iOS/web HTML/CSS/JS renderer |
-| `tools/web-gallery.py` | Web completeness/integrity gate, ordering and generated indexes |
+| `tools/web-gallery.py` | Web completeness/integrity gate, ordering (workflow screenshots follow catalog order) and generated indexes |
 | `docs/web/capture-manifest.json` | Retained workflow outcomes and screenshot provenance |
 | `docs/web/gallery.html`, `docs/web/workflows.md` | Generated static documentation |
