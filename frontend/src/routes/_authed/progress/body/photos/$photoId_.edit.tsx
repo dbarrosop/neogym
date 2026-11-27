@@ -6,11 +6,11 @@ import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { usePhotoScope } from "@/components/progress-photos/photo-boundary";
 import { PhotoDetailState } from "@/components/progress-photos/photo-detail-state";
 import {
-  AngleSelect,
+  catalogLabelValue,
   PhotoDateInput,
+  PhotoLabelSelect,
   PhotoLoadError,
-  photoLabel,
-  usePhotoAngles,
+  usePhotoLabels,
 } from "@/components/progress-photos/photo-fields";
 import { useFormPageFormId } from "@/lib/form-page-context";
 import { type Photo, type PhotoFields, updatePhoto } from "@/lib/progress-photos/api";
@@ -135,12 +135,12 @@ function EditPhotoForm({
   cancel: () => void;
   save: (label: PhotoFields["label"], date: string) => void;
 }) {
-  const angles = usePhotoAngles();
+  const labels = usePhotoLabels();
   const formId = useFormPageFormId();
   const today = useLocalToday();
   const [date, setDate] = useState<string>(photo.takenOn);
-  const [angle, setAngle] = useState(photo.label.value);
-  const label = photoLabel(angle, angles.data);
+  const [selectedLabel, setSelectedLabel] = useState(photo.label.value);
+  const label = catalogLabelValue(selectedLabel, labels.data);
   const validDate = validPhotoDate(date, today);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,18 +151,22 @@ function EditPhotoForm({
   return (
     <form id={formId} autoComplete="off" className="space-y-5" onSubmit={submit}>
       <fieldset className="space-y-5" disabled={Boolean(stage)}>
-        {angles.data ? (
-          <AngleSelect angles={angles.data} value={angle} onChange={setAngle} />
+        {labels.data ? (
+          <PhotoLabelSelect
+            labels={labels.data}
+            value={selectedLabel}
+            onChange={setSelectedLabel}
+          />
         ) : null}
         <PhotoDateInput value={date} today={today} onChange={setDate} />
       </fieldset>
-      {angles.isPending ? (
+      {labels.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">
-          Loading angles…
+          Loading labels…
         </p>
       ) : null}
-      {angles.isError ? (
-        <PhotoLoadError title="Couldn't load photo angles" retry={() => void angles.refetch()} />
+      {labels.isError ? (
+        <PhotoLoadError title="Couldn't load photo labels" retry={() => void labels.refetch()} />
       ) : null}
       {error ? (
         <p role="alert" className="text-sm text-destructive">

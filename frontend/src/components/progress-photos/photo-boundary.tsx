@@ -1,8 +1,14 @@
 import type { NhostClient } from "@nhost/nhost-js";
 import { DEFAULT_SESSION_KEY } from "@nhost/nhost-js/session";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Outlet, useRouterState } from "@tanstack/react-router";
-import { createContext, useContext, useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { PhotoScope } from "@/lib/progress-photos/scope";
 
@@ -16,18 +22,18 @@ export function usePhotoScope() {
   return scope;
 }
 
-export function PhotoBoundary() {
+export function PrivatePhotos({
+  children,
+  keepWhileHidden = false,
+}: {
+  children: ReactNode;
+  keepWhileHidden?: boolean;
+}) {
   const { nhost, user, isAuthenticated } = useAuth();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const keepWhileHidden =
-    pathname === "/progress/body/photos/new" || pathname === "/progress/body/photos/new/";
   return user && isAuthenticated ? (
-    <PhotoLifetime
-      key={`${user.id}:${pathname}`}
-      owner={user.id}
-      client={nhost}
-      keepWhileHidden={keepWhileHidden}
-    />
+    <PhotoLifetime key={user.id} owner={user.id} client={nhost} keepWhileHidden={keepWhileHidden}>
+      {children}
+    </PhotoLifetime>
   ) : null;
 }
 
@@ -43,10 +49,12 @@ function PhotoLifetime({
   owner,
   client,
   keepWhileHidden,
+  children,
 }: {
   owner: string;
   client: NhostClient;
   keepWhileHidden: boolean;
+  children: ReactNode;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const [lifetime, setLifetime] = useState<{
@@ -153,9 +161,7 @@ function PhotoLifetime({
     <div ref={root} hidden={!active} className="group/photo-route">
       {active ? (
         <QueryClientProvider key={lifetime.generation} client={lifetime.queries}>
-          <PhotoContext.Provider value={lifetime.scope}>
-            <Outlet />
-          </PhotoContext.Provider>
+          <PhotoContext.Provider value={lifetime.scope}>{children}</PhotoContext.Provider>
         </QueryClientProvider>
       ) : null}
     </div>

@@ -125,11 +125,17 @@ const photo = {
   id,
   takenOn: "2001-02-03",
   createdAt: "2026-11-25T10:00:00.123Z",
-  label: { value: "front", comment: "Front" },
+  label: { value: "front_a", comment: "Front A" },
   file: { id, isUploaded: true },
 };
 const side = { value: "side", comment: "Side" };
+function fixturePhoto(number: number, takenOn = photo.takenOn) {
+  const id = `39d36419-4eb1-4190-8213-${String(number).padStart(12, "0")}`;
+  return { ...photo, id, takenOn, file: { id, isUploaded: true } };
+}
+const pending = { ...fixturePhoto(15), file: null };
 let listFails = true;
+let nextPageFails = true;
 let lastFilter: string | undefined;
 let fileHeld: ReturnType<typeof Promise.withResolvers<Response>> | undefined;
 let uploadHeld: ReturnType<typeof Promise.withResolvers<Response>> | undefined;
@@ -144,6 +150,41 @@ let requests = 0;
 let imageSignal: AbortSignal | null | undefined;
 function json(data: unknown) {
   return Response.json({ data });
+}
+function historyResponse(where: {
+  userId: { _eq: string };
+  file: unknown;
+  labelValue?: { _eq: string };
+  _or?: unknown[];
+}) {
+  assert.equal(where.userId._eq, client.getUserSession()?.user?.id);
+  assert.deepEqual(where.file, { isUploaded: { _eq: true } });
+  if (listFails) {
+    return new Response(null, { status: 500 });
+  }
+  lastFilter = where.labelValue?._eq;
+  if (lastFilter || where.userId._eq !== "alice") {
+    return json({ progressPhotos: [] });
+  }
+  if (where._or) {
+    assert.deepEqual(where._or[2], {
+      takenOn: { _eq: pending.takenOn },
+      createdAt: { _eq: pending.createdAt },
+      id: { _lt: pending.id },
+    });
+    if (nextPageFails) {
+      return new Response(null, { status: 503 });
+    }
+    return json({ progressPhotos: [fixturePhoto(16), fixturePhoto(17, "2001-01-31")] });
+  }
+  return json({
+    progressPhotos: [
+      photo,
+      ...Array.from({ length: 14 }, (_, i) => fixturePhoto(i + 1)),
+      pending,
+      fixturePhoto(16),
+    ],
+  });
 }
 globalThis.fetch = ((url: string, init: RequestInit) => {
   if (url.endsWith("/token")) {
@@ -189,26 +230,27 @@ globalThis.fetch = ((url: string, init: RequestInit) => {
   const { query, variables } = JSON.parse(String(init.body));
   const operation = getOperationAST(parse(query))?.name?.value;
   switch (operation) {
-    case "ProgressPhotoAngles":
+    case "ProgressPhotoLabels":
       return Promise.resolve(
-        json({ progressPhotoLabels: [photo.label, { value: "back", comment: "Back" }, side] }),
+        json({ progressPhotoLabels: [photo.label, { value: "back_b", comment: "Back B" }, side] }),
       );
-    case "ProgressPhotoHistory": {
-      assert.equal(variables.where.userId._eq, client.getUserSession()?.user?.id);
-      assert.deepEqual(variables.where.file, { isUploaded: { _eq: true } });
-      if (listFails) {
-        return Promise.resolve(new Response(null, { status: 500 }));
-      }
-      lastFilter = variables.where.labelValue?._eq;
-      const filtered = Boolean(lastFilter) || variables.where.userId._eq !== "alice";
+    case "ProgressPhotoSummary": {
+      const currentOwner = client.getUserSession()?.user?.id;
+      assert.deepEqual(variables.where, {
+        userId: { _eq: currentOwner },
+        file: { isUploaded: { _eq: true } },
+      });
+      const alice = currentOwner === "alice";
       return Promise.resolve(
         json({
-          progressPhotos: filtered
-            ? []
-            : [photo, { ...photo, id: "39d36419-4eb1-4190-8213-e6c116935ab5", file: null }],
+          progressPhotosAggregate: {
+            aggregate: { count: alice ? 17 : 0, max: { takenOn: alice ? photo.takenOn : null } },
+          },
         }),
       );
     }
+    case "ProgressPhotoHistory":
+      return Promise.resolve(historyResponse(variables.where));
     case "ProgressPhotoDetails":
       return Promise.resolve(
         json({
@@ -231,11 +273,11 @@ globalThis.fetch = ((url: string, init: RequestInit) => {
 
 const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
-const { PhotoBoundary } = await import("@/components/progress-photos/photo-boundary");
 const { photoFetch } = await import("@/lib/progress-photos/api");
 const { PhotoScope } = await import("@/lib/progress-photos/scope");
 const { __testing } = await import("@/components/breadcrumbs");
 const { Route: Body } = await import("@/routes/_authed/progress/body");
+const { Route: PhotoLayout } = await import("@/routes/_authed/progress/body/photos");
 const { Route: Gallery } = await import("@/routes/_authed/progress/body/photos/index");
 const { Route: New } = await import("@/routes/_authed/progress/body/photos/new");
 const { Route: Edit } = await import("@/routes/_authed/progress/body/photos/$photoId_.edit");
@@ -256,7 +298,7 @@ async function renderPage(path: string, route: Parameters<typeof view>[0]) {
       path === "/progress/body" ? (
         <QueryClientProvider client={queryClient}>{outlet}</QueryClientProvider>
       ) : (
-        <PhotoBoundary />
+        view(PhotoLayout)
       ),
     );
   });
@@ -387,18 +429,42 @@ await verifyIssuedRefresh("close", null, () => client.clearSession());
 await verifyIssuedRefresh("close", "fixture-bob", () => signIn("bob"));
 await verifyIssuedRefresh("close", "fresh-sign-in", () => signIn("alice", "fresh-sign-in"));
 await verifyRefreshLineage();
+signIn("alice");
 await renderPage("/progress/body", Body);
-assert.equal(exactText("Progress photos", "a").getAttribute("href"), "/progress/body/photos");
+const summary = mount.querySelector("section[aria-labelledby]");
+assert(summary);
+assert.equal(exactText("View progress photos", "a").getAttribute("href"), "/progress/body/photos");
 assert(exactText("Log measurement", "a"));
-assert.equal(requests, 0);
+await settled(() => assert(summary.textContent?.includes("17 photos")));
+assert.equal(summary.querySelector("time")?.dateTime, photo.takenOn);
+assert.equal(requests, 1, "the card does not fetch a photo list or bytes");
+assert(
+  !queryClient
+    .getQueryCache()
+    .getAll()
+    .some((query) => query.queryKey[0] === "photo-summary"),
+);
+await act(() => {
+  owner = "bob";
+  signIn("bob");
+  assert(
+    summary.querySelector("time")?.closest("[hidden]"),
+    "owner loss conceals the date immediately",
+  );
+});
+await renderPage("/progress/body", Body);
+await settled(() => assert(summary.textContent?.includes("0 photos")));
+assert(!summary.querySelector("time"));
+owner = "alice";
 assert.deepEqual(
   __testing.trailFor(`/progress/body/photos/${id}/edit`).map((crumb) => crumb.label),
   ["Progress", "Body", "Progress photos", "Photo", "Edit"],
 );
 
-signIn("bob"); // Stale render of Alice must not fetch as Bob.
+const beforeStale = requests;
+// Stale render of Alice must not fetch as Bob.
 await renderPage("/progress/body/photos", Gallery);
-assert.equal(requests, 0);
+assert.equal(requests, beforeStale);
 await act(() => {
   signIn("alice");
 });
@@ -406,20 +472,41 @@ await settled(() => assert(mount.textContent?.includes("Couldn't load photos")))
 assert.equal(exactText("Body", "nav a").getAttribute("aria-current"), "page");
 listFails = false;
 await act(() => exactText("Retry").click());
-await settled(() => assert.equal(mount.querySelectorAll("ul li").length, 1));
-await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 1));
+const timeline = () => mount.querySelector('ol[aria-label="Progress photos"]');
+await settled(() => assert.equal(timeline()?.querySelectorAll("a").length, 15));
+assert.deepEqual(
+  [...mount.querySelectorAll("time")].map((time) => time.dateTime),
+  [photo.takenOn],
+);
+await act(() => exactText("Load older photos").click());
+await settled(() => assert(mount.textContent?.includes("Couldn't load older photos")));
+assert.equal(
+  timeline()?.querySelectorAll("a").length,
+  15,
+  "a failed next page keeps existing photos",
+);
+nextPageFails = false;
+await act(() => exactText("Load older photos").click());
+await settled(() => assert.equal(timeline()?.children.length, 2));
+assert.deepEqual(
+  [...mount.querySelectorAll("time")].map((time) => time.dateTime),
+  [photo.takenOn, "2001-01-31"],
+);
+assert.equal(timeline()?.firstElementChild?.querySelectorAll("a").length, 16);
+assert.equal(timeline()?.lastElementChild?.querySelectorAll("a").length, 1);
+await settled(() => assert(mount.querySelector("img[src^='blob:']")));
 const firstURL = mount.querySelector("img")?.src;
 assert(firstURL);
 const filter = mount.querySelector("select");
 assert(filter);
-async function selectAngle(select: HTMLSelectElement, value: string) {
+async function selectLabel(select: HTMLSelectElement, value: string) {
   await act(() => {
     select.value = value;
     select.dispatchEvent(new window.Event("change", { bubbles: true }));
   });
 }
-await selectAngle(filter, "side");
-await settled(() => assert(mount.textContent?.includes("No photos for this angle")));
+await selectLabel(filter, "side");
+await settled(() => assert(mount.textContent?.includes("No photos for this label")));
 assert.equal(lastFilter, "side", "a newer catalog value must remain a GraphQL filter");
 assert(revoked.includes(firstURL));
 
@@ -487,9 +574,9 @@ assert(preview.closest("[data-photo-concealed]"));
 await act(() => visibility(false));
 assert.equal(mount.querySelector('img[alt="Preview for upload"]'), preview);
 assert(!preview.closest("[data-photo-concealed]"));
-const newAngle = mount.querySelector("select");
-assert(newAngle);
-await selectAngle(newAngle, "side");
+const newLabel = mount.querySelector("select");
+assert(newLabel);
+await selectLabel(newLabel, "side");
 assert(!exactText("Upload photo").hasAttribute("disabled"));
 const uploading = Promise.withResolvers<Response>();
 uploadHeld = uploading;
@@ -535,9 +622,9 @@ await act(() => exactText("Cancel").click());
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
 await renderPage(`/progress/body/photos/${id}/edit`, Edit);
 await settled(() => assert(!exactText("Save changes").hasAttribute("disabled")));
-const editAngle = mount.querySelector("select");
-assert(editAngle);
-await selectAngle(editAngle, "side");
+const editLabel = mount.querySelector("select");
+assert(editLabel);
+await selectLabel(editLabel, "side");
 await submitForm();
 assert.deepEqual(navigations.pop(), {
   to: "/progress/body/photos/$photoId",

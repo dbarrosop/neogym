@@ -4,8 +4,8 @@ import type { GalleryDriver } from "./driver";
 import { dateBefore } from "./fixtures";
 
 const GALLERY = "/progress/body/photos";
-const FRONT_PHOTO = /^Front progress photo,/;
-const BACK_PHOTO = /^Back progress photo,/;
+const FRONT_PHOTO = /^Front A progress photo,/;
+const BACK_PHOTO = /^Back B progress photo,/;
 export const CHECK_PHOTOS = `query GalleryCheckProgressPhotos {
   progressPhotos(order_by: [{takenOn: desc}, {createdAt: desc}, {id: desc}]) {
     id takenOn labelValue file { id isUploaded }
@@ -82,7 +82,7 @@ async function upload(guide: GalleryDriver, date: string, alternate = false) {
   await page
     .getByLabel("Photo file", { exact: true })
     .setInputFiles(await illustration(page, alternate));
-  await page.getByLabel("Angle", { exact: true }).selectOption("front");
+  await page.getByLabel("Label", { exact: true }).selectOption("front_a");
   const dateInput = page.getByLabel("Date taken", { exact: true });
   await dateInput.fill(date);
   await dateInput.blur();
@@ -135,25 +135,27 @@ async function walkthrough(guide: GalleryDriver, backend: CaptureBackend, today:
   const originalDate = dateBefore(today, 7);
   const editedDate = dateBefore(today, 3);
   const gallery = page.getByRole("heading", { name: "Progress photos", exact: true });
-  const filter = page.getByLabel("Filter by angle", { exact: true });
+  const filter = page.getByLabel("Filter by label", { exact: true });
   await guide.open("/progress/body", "Progress");
-  guide.step("Follow Progress photos from Body to the empty history");
-  await page.getByRole("link", { name: "Progress photos", exact: true }).click();
+  guide.step("Open the photo summary card on Body and go to the empty history");
+  const summary = page.getByRole("region", { name: "Progress photos", exact: true });
+  await expect(summary.getByText("0 photos", { exact: true })).toBeVisible();
+  await summary.getByRole("link", { name: "View progress photos" }).click();
   await expect(gallery).toBeVisible();
   await expect(page.getByText("No progress photos", { exact: true })).toBeVisible();
   await guide.shot("empty", "Progress photos: empty private history and the Add photo action");
 
-  guide.step("Choose a synthetic PNG, select Front, backdate it and upload");
+  guide.step("Choose a synthetic PNG, select Front A, backdate it and upload");
   const first = await upload(guide, originalDate);
   expect(first).toBeTruthy();
   await guide.shot(
     "viewer",
-    "Photo viewer: the uploaded illustration with its angle and date taken",
+    "Photo viewer: the uploaded illustration with its label and date taken",
   );
   await page.goBack();
   await expect(gallery).toBeVisible();
   guide.step(
-    "Upload a second illustration with the same date and angle, then return to the gallery",
+    "Upload a second illustration with the same date and label, then return to the gallery",
   );
   const second = await upload(guide, originalDate, true);
   expect(second).toBeTruthy();
@@ -163,47 +165,56 @@ async function walkthrough(guide: GalleryDriver, backend: CaptureBackend, today:
   await expect(cards(page)).toHaveCount(2);
   await decoded(cards(page).nth(0).locator("img"));
   await decoded(cards(page).nth(1).locator("img"));
-  await guide.shot("duplicates", "Gallery: two distinct uploads sharing the same date and angle");
+  const timeline = page.getByRole("list", { name: "Progress photos", exact: true });
+  await expect(timeline.locator("h2 time")).toHaveCount(1);
+  await guide.shot("duplicates", "Timeline: two distinct uploads on a single date row");
   expect(await photos(backend)).toEqual(
     [second, first].map((id) => ({
       id,
       takenOn: originalDate,
-      labelValue: "front",
+      labelValue: "front_a",
       file: { id, isUploaded: true },
     })),
   );
   guide.check(
-    "A fresh backend read contains two distinct ready files with the same backdated Front metadata; Back returns to the gallery, not the spent upload form",
+    "A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form",
   );
 
-  guide.step("Open the newer photo; edit its date and angle without choosing a new image");
+  guide.step("Open the newer photo; edit its date and label without choosing a new image");
   await cards(page).first().click();
   await expect(page).toHaveURL((url) => url.pathname === `${GALLERY}/${second}`);
   await page.getByRole("link", { name: "Edit", exact: true }).click();
-  await page.getByLabel("Angle", { exact: true }).selectOption("back");
+  await page.getByLabel("Label", { exact: true }).selectOption("back_b");
   const dateInput = page.getByLabel("Date taken", { exact: true });
   await dateInput.fill(editedDate);
   await dateInput.blur();
-  await guide.shot("edit", "Edit photo: correct the date and angle without replacing the image");
+  await guide.shot("edit", "Edit photo: correct the date and label without replacing the image");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await decoded(page.getByRole("img", { name: BACK_PHOTO }));
   expect((await photos(backend))[0]).toEqual({
     id: second,
     takenOn: editedDate,
-    labelValue: "back",
+    labelValue: "back_b",
     file: { id: second, isUploaded: true },
   });
 
-  guide.step("Return to the gallery and set the angle filter to Back");
+  guide.step("Check that the edited photo moves to the newest date row, then filter by Back B");
   await page.goBack();
   await expect(gallery).toBeVisible();
-  await filter.selectOption("back");
+  const dates = timeline.locator("h2 time");
+  await expect(dates).toHaveCount(2);
+  await expect(dates.nth(0)).toHaveAttribute("datetime", editedDate);
+  await expect(dates.nth(1)).toHaveAttribute("datetime", originalDate);
+  await decoded(cards(page).nth(0).locator("img"));
+  await decoded(cards(page).nth(1).locator("img"));
+  await guide.shot("timeline", "Timeline: newest date first, with one row per photo date");
+  await filter.selectOption("back_b");
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toHaveAttribute("href", `${GALLERY}/${second}`);
   await decoded(cards(page).first().locator("img"));
-  await guide.shot("filtered", "Gallery: the Back filter shows only the corrected photo");
+  await guide.shot("filtered", "Gallery: the Back B filter shows only the corrected photo");
   guide.check(
-    "The edit changed only the date and angle, retaining the same file ID; the Back filter shows only that photo",
+    "The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo",
   );
 
   guide.step("Open the filtered photo, edit it, and confirm Delete photo");
@@ -224,8 +235,13 @@ async function walkthrough(guide: GalleryDriver, backend: CaptureBackend, today:
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toHaveAttribute("href", `${GALLERY}/${first}`);
   await decoded(cards(page).first().locator("img"));
-  await guide.shot("deleted", "Gallery: the other Front photo remains after deletion");
+  await guide.shot("deleted", "Gallery: the other Front A photo remains after deletion");
   expect((await photos(backend)).map(({ id }) => id)).toEqual([first]);
+  guide.step("Return to Body and confirm its photo count and latest date");
+  await guide.open("/progress/body", "Progress");
+  await expect(summary.getByText("1 photo", { exact: true })).toBeVisible();
+  await expect(summary.locator("time")).toHaveAttribute("datetime", originalDate);
+  guide.check("Body shows one ready photo and its date after the deletion");
   guide.check(
     "A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains",
   );

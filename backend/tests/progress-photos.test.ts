@@ -294,7 +294,7 @@ const fileInput = (id: string) => ({
 	size: JPEG.length,
 	mimeType: "image/jpeg",
 });
-const photoInput = (labelValue = "front") => ({ labelValue, takenOn: DATE });
+const photoInput = (labelValue = "front_a") => ({ labelValue, takenOn: DATE });
 
 type PhotoAndFile = Photo & {
 	label: { value: string; comment: string | null };
@@ -305,7 +305,7 @@ type PhotoAndFile = Photo & {
 	} | null;
 };
 
-async function reserve(account = owner, url = HASURA, label = "front") {
+async function reserve(account = owner, url = HASURA, label = "front_a") {
 	const response = await gql<{ insertProgressPhoto: Photo }>(
 		url,
 		INSERT,
@@ -450,10 +450,12 @@ test("both GraphQL endpoints expose the seeded photo labels as an enum", async (
 		expect(result.data?.labelEnum.kind).toBe("ENUM");
 		expect(
 			result.data?.labelEnum.enumValues.map(({ name }) => name).sort(),
-		).toEqual(["back", "front"]);
+		).toEqual(["back_a", "back_b", "front_a", "front_b"]);
 		expect(result.data?.progressPhotoLabels).toEqual([
-			{ value: "back", comment: "Back" },
-			{ value: "front", comment: "Front" },
+			{ value: "back_a", comment: "Back A" },
+			{ value: "back_b", comment: "Back B" },
+			{ value: "front_a", comment: "Front A" },
+			{ value: "front_b", comment: "Front B" },
 		]);
 	}
 });
@@ -495,6 +497,15 @@ test("signed-in users reserve with a date and a catalog label, never choose the 
 			"progressPhotoLabel_enum",
 		);
 		expect(invalidLabel.errors?.[0]?.message).toContain("side");
+		for (const retired of ["front", "back"]) {
+			const response = await gql(
+				url,
+				INSERT,
+				{ object: photoInput(retired) },
+				bearer(owner),
+			);
+			expect(response.errors?.[0]?.message).toContain("progressPhotoLabel_enum");
+		}
 		for (const object of [
 			{ ...photoInput(), id: crypto.randomUUID() },
 			{ ...photoInput(), userId: other.id },
@@ -616,7 +627,7 @@ test("a completed upload appears through the relationship, with private bytes an
 		).toMatchObject({
 			id,
 			...photoInput(),
-			label: { value: "front", comment: "Front" },
+			label: { value: "front_a", comment: "Front A" },
 			file: { id, isUploaded: true, progressPhoto: { id } },
 		});
 		expect(
@@ -694,7 +705,7 @@ test("same-day reservations remain distinct and only date and label can be corre
 		const list = await gql<{ progressPhotos: Array<{ id: string }> }>(
 			url,
 			`query Ready($ids: [uuid!]!) {
-			progressPhotos(where: { id: { _in: $ids }, labelValue: { _eq: front }, file: { isUploaded: { _eq: true } } },
+			progressPhotos(where: { id: { _in: $ids }, labelValue: { _eq: front_a }, file: { isUploaded: { _eq: true } } },
 				order_by: [{ takenOn: desc }, { createdAt: desc }, { id: desc }]) { id }
 		}`,
 			{ ids: [first, second, pending] },
@@ -710,7 +721,7 @@ test("same-day reservations remain distinct and only date and label can be corre
 				(await gql(url, EDIT, { id: first, set }, bearer(owner))).errors,
 			).toBeDefined();
 		}
-		const set = { labelValue: "back", takenOn: "2024-01-01" };
+		const set = { labelValue: "back_a", takenOn: "2024-01-01" };
 		expect(
 			(
 				await gql<{ updateProgressPhoto: unknown }>(
@@ -734,11 +745,68 @@ test("same-day reservations remain distinct and only date and label can be corre
 		expect(
 			(await photo(first, bearer(owner), url)).data?.progressPhoto?.label,
 		).toEqual({
-			value: "back",
-			comment: "Back",
+			value: "back_a",
+			comment: "Back A",
 		});
 		// Restore for the next endpoint's ordering assertion.
 		await gql(url, EDIT, { id: first, set: photoInput() }, bearer(owner));
+	}
+});
+
+test("summary counts completed photos and finds the latest date only for the owner", async () => {
+	const first = await reserve(owner, HASURA, "front_b");
+	const newest = await reserve(owner, HASURA, "back_b");
+	const pending = await reserve();
+	const unused = await reserve();
+	const foreign = await reserve(other);
+	await uploadedFixture(first);
+	await uploadedFixture(newest);
+	await uploadedFixture(foreign, other);
+	await initializeFixture(pending);
+	for (const [id, account, takenOn] of [
+		[newest, owner, "2024-03-01"],
+		[pending, owner, "2024-03-02"],
+		[unused, owner, "2024-03-03"],
+		[foreign, other, "2024-03-04"],
+	] as const) {
+		const change = await gql(
+			HASURA,
+			EDIT,
+			{ id, set: { takenOn } },
+			bearer(account),
+		);
+		expect(change.errors).toBeUndefined();
+	}
+	const query = `query Summary($ids: [uuid!]!) {
+		progressPhotosAggregate(where: { id: { _in: $ids }, file: { isUploaded: { _eq: true } } }) {
+			aggregate { count max { takenOn } }
+		}
+	}`;
+	type Summary = {
+		progressPhotosAggregate: {
+			aggregate: { count: number; max: { takenOn: string | null } };
+		};
+	};
+	for (const url of [HASURA, CONSTELLATION]) {
+		const ids = [first, newest, pending, unused, foreign];
+		const summary = await gql<Summary>(url, query, { ids }, bearer(owner));
+		expect(summary.errors).toBeUndefined();
+		expect(summary.data?.progressPhotosAggregate.aggregate).toEqual({
+			count: 2,
+			max: { takenOn: "2024-03-01" },
+		});
+		const empty = await gql<Summary>(
+			url,
+			query,
+			{ ids: [foreign] },
+			bearer(owner),
+		);
+		expect(empty.errors).toBeUndefined();
+		expect(empty.data?.progressPhotosAggregate.aggregate).toEqual({
+			count: 0,
+			max: { takenOn: null },
+		});
+		expect((await gql(url, query, { ids }, {})).errors).toBeDefined();
 	}
 });
 

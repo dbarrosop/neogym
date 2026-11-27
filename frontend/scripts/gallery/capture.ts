@@ -207,7 +207,7 @@ async function captureProfile(
     if (options.group === "all" || options.group === "roots") {
       await captureRoots(guide);
     } else if (options.group === "progress-photos") {
-      // Refresh the existing Body root with its photo shortcut in the same targeted capture.
+      // Refresh the existing Body root with its photo summary in the same targeted capture.
       await captureRoots(guide, "body");
     }
     const actions: Record<string, () => Promise<void>> = {

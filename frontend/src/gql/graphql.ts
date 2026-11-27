@@ -9098,10 +9098,14 @@ export type ProgressPhotoLabel_Bool_Exp = {
 };
 
 export enum ProgressPhotoLabel_Enum {
-  /** Back */
-  Back = 'back',
-  /** Front */
-  Front = 'front'
+  /** Back A */
+  BackA = 'back_a',
+  /** Back B */
+  BackB = 'back_b',
+  /** Front A */
+  FrontA = 'front_a',
+  /** Front B */
+  FrontB = 'front_b'
 }
 
 /** Boolean expression to compare columns of type "progressPhotoLabel_enum". All fields are combined with logical 'AND'. */
@@ -9141,6 +9145,28 @@ export type ProgressPhotoLabel_Stream_Cursor_Value_Input = {
   value?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** aggregated selection of "progress_photos" */
+export type ProgressPhoto_Aggregate = {
+  __typename?: 'progressPhoto_aggregate';
+  aggregate?: Maybe<ProgressPhoto_Aggregate_Fields>;
+  nodes: Array<ProgressPhoto>;
+};
+
+/** aggregate fields of "progress_photos" */
+export type ProgressPhoto_Aggregate_Fields = {
+  __typename?: 'progressPhoto_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<ProgressPhoto_Max_Fields>;
+  min?: Maybe<ProgressPhoto_Min_Fields>;
+};
+
+
+/** aggregate fields of "progress_photos" */
+export type ProgressPhoto_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<ProgressPhoto_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 /** Boolean expression to filter rows from the table "progress_photos". All fields are combined with a logical 'AND'. */
 export type ProgressPhoto_Bool_Exp = {
   _and?: InputMaybe<Array<ProgressPhoto_Bool_Exp>>;
@@ -9169,6 +9195,26 @@ export type ProgressPhoto_Insert_Input = {
   file?: InputMaybe<Files_Obj_Rel_Insert_Input>;
   labelValue?: InputMaybe<ProgressPhotoLabel_Enum>;
   takenOn?: InputMaybe<Scalars['date']['input']>;
+};
+
+/** aggregate max on columns */
+export type ProgressPhoto_Max_Fields = {
+  __typename?: 'progressPhoto_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  takenOn?: Maybe<Scalars['date']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type ProgressPhoto_Min_Fields = {
+  __typename?: 'progressPhoto_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  takenOn?: Maybe<Scalars['date']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
 };
 
 /** response of any mutation on the table "progress_photos" */
@@ -9442,6 +9488,8 @@ export type Query_Root = {
   progressPhotoLabels: Array<ProgressPhotoLabel>;
   /** fetch data from the table: "progress_photos" */
   progressPhotos: Array<ProgressPhoto>;
+  /** fetch aggregated fields from the table: "progress_photos" */
+  progressPhotosAggregate: ProgressPhoto_Aggregate;
   /** execute function "strength_progress" which returns "exerciseStrengthHistoryRows" */
   strengthProgress: Array<ExerciseStrengthHistoryRows>;
   /** fetch data from the table: "workouts" using primary key columns */
@@ -10164,6 +10212,15 @@ export type Query_RootProgressPhotosArgs = {
 };
 
 
+export type Query_RootProgressPhotosAggregateArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhoto_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhoto_Order_By>>;
+  where?: InputMaybe<ProgressPhoto_Bool_Exp>;
+};
+
+
 export type Query_RootStrengthProgressArgs = {
   args: StrengthProgress_Args;
   distinct_on?: InputMaybe<Array<ExerciseStrengthHistoryRows_Select_Column>>;
@@ -10608,6 +10665,8 @@ export type Subscription_Root = {
   progressPhoto_stream: Array<ProgressPhoto>;
   /** fetch data from the table: "progress_photos" */
   progressPhotos: Array<ProgressPhoto>;
+  /** fetch aggregated fields from the table: "progress_photos" */
+  progressPhotosAggregate: ProgressPhoto_Aggregate;
   /** execute function "strength_progress" which returns "exerciseStrengthHistoryRows" */
   strengthProgress: Array<ExerciseStrengthHistoryRows>;
   /** fetch data from the table: "workouts" using primary key columns */
@@ -11555,6 +11614,15 @@ export type Subscription_RootProgressPhoto_StreamArgs = {
 
 
 export type Subscription_RootProgressPhotosArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhoto_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhoto_Order_By>>;
+  where?: InputMaybe<ProgressPhoto_Bool_Exp>;
+};
+
+
+export type Subscription_RootProgressPhotosAggregateArgs = {
   distinct_on?: InputMaybe<Array<ProgressPhoto_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
@@ -14481,10 +14549,17 @@ export type LogSelectedPlanMutationVariables = Exact<{
 
 export type LogSelectedPlanMutation = { __typename?: 'mutation_root', insertNutritionLogMeals?: { __typename?: 'nutritionLogMeals_mutation_response', affected_rows: number } | null, insertNutritionLogEntries?: { __typename?: 'nutritionLogEntries_mutation_response', affected_rows: number } | null };
 
-export type ProgressPhotoAnglesQueryVariables = Exact<{ [key: string]: never; }>;
+export type ProgressPhotoLabelsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ProgressPhotoAnglesQuery = { __typename?: 'query_root', progressPhotoLabels: Array<{ __typename?: 'progressPhotoLabel', value: string, comment?: string | null }> };
+export type ProgressPhotoLabelsQuery = { __typename?: 'query_root', progressPhotoLabels: Array<{ __typename?: 'progressPhotoLabel', value: string, comment?: string | null }> };
+
+export type ProgressPhotoSummaryQueryVariables = Exact<{
+  where: ProgressPhoto_Bool_Exp;
+}>;
+
+
+export type ProgressPhotoSummaryQuery = { __typename?: 'query_root', progressPhotosAggregate: { __typename?: 'progressPhoto_aggregate', aggregate?: { __typename?: 'progressPhoto_aggregate_fields', count: number, max?: { __typename?: 'progressPhoto_max_fields', takenOn?: any | null } | null } | null } };
 
 export type ProgressPhotoHistoryQueryVariables = Exact<{
   where: ProgressPhoto_Bool_Exp;
@@ -14999,7 +15074,8 @@ export const SessionsIndexDocument = {"kind":"Document","definitions":[{"kind":"
 export const StartSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"StartSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessions_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<StartSessionMutation, StartSessionMutationVariables>;
 export const WorkoutsIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"WorkoutsIndex"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workouts"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"isPublic"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"workoutExercises_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"labels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<WorkoutsIndexQuery, WorkoutsIndexQueryVariables>;
 export const LogSelectedPlanDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"LogSelectedPlan"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"mealObjects"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"nutritionLogMeals_insert_input"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"entryObjects"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"nutritionLogEntries_insert_input"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"hasMealObjects"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"hasEntryObjects"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertNutritionLogMeals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"mealObjects"}}}],"directives":[{"kind":"Directive","name":{"kind":"Name","value":"include"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"if"},"value":{"kind":"Variable","name":{"kind":"Name","value":"hasMealObjects"}}}]}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}},{"kind":"Field","name":{"kind":"Name","value":"insertNutritionLogEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"entryObjects"}}}],"directives":[{"kind":"Directive","name":{"kind":"Name","value":"include"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"if"},"value":{"kind":"Variable","name":{"kind":"Name","value":"hasEntryObjects"}}}]}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}}]}}]} as unknown as DocumentNode<LogSelectedPlanMutation, LogSelectedPlanMutationVariables>;
-export const ProgressPhotoAnglesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProgressPhotoAngles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"progressPhotoLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"value"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"comment"}}]}}]}}]} as unknown as DocumentNode<ProgressPhotoAnglesQuery, ProgressPhotoAnglesQueryVariables>;
+export const ProgressPhotoLabelsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProgressPhotoLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"progressPhotoLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"value"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"comment"}}]}}]}}]} as unknown as DocumentNode<ProgressPhotoLabelsQuery, ProgressPhotoLabelsQueryVariables>;
+export const ProgressPhotoSummaryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProgressPhotoSummary"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"where"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"progressPhoto_bool_exp"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"progressPhotosAggregate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"Variable","name":{"kind":"Name","value":"where"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"max"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"takenOn"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ProgressPhotoSummaryQuery, ProgressPhotoSummaryQueryVariables>;
 export const ProgressPhotoHistoryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProgressPhotoHistory"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"where"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"progressPhoto_bool_exp"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"progressPhotos"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"Variable","name":{"kind":"Name","value":"where"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"takenOn"},"value":{"kind":"EnumValue","value":"desc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"desc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"desc"}}]}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"takenOn"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"comment"}}]}},{"kind":"Field","name":{"kind":"Name","value":"file"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"isUploaded"}}]}}]}}]}}]} as unknown as DocumentNode<ProgressPhotoHistoryQuery, ProgressPhotoHistoryQueryVariables>;
 export const ProgressPhotoDetailsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProgressPhotoDetails"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"progressPhoto"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"takenOn"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"comment"}}]}},{"kind":"Field","name":{"kind":"Name","value":"file"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"isUploaded"}}]}}]}}]}}]} as unknown as DocumentNode<ProgressPhotoDetailsQuery, ProgressPhotoDetailsQueryVariables>;
 export const ReserveProgressPhotoDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ReserveProgressPhoto"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"label"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"progressPhotoLabel_enum"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"date"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"date"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertProgressPhoto"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"labelValue"},"value":{"kind":"Variable","name":{"kind":"Name","value":"label"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"takenOn"},"value":{"kind":"Variable","name":{"kind":"Name","value":"date"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<ReserveProgressPhotoMutation, ReserveProgressPhotoMutationVariables>;

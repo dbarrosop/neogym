@@ -4,11 +4,11 @@ import { FormActions } from "@/components/patterns/form-actions";
 import { FormPage } from "@/components/patterns/form-page";
 import { usePhotoScope } from "@/components/progress-photos/photo-boundary";
 import {
-  AngleSelect,
+  catalogLabelValue,
   PhotoDateInput,
+  PhotoLabelSelect,
   PhotoLoadError,
-  photoLabel,
-  usePhotoAngles,
+  usePhotoLabels,
 } from "@/components/progress-photos/photo-fields";
 import { PhotoPreview } from "@/components/progress-photos/photo-image";
 import { Input } from "@/components/ui/input";
@@ -38,13 +38,13 @@ function NewPhotoPage() {
 function NewPhotoForm() {
   const scope = usePhotoScope();
   const navigate = Route.useNavigate();
-  const angles = usePhotoAngles();
+  const labels = usePhotoLabels();
   const formId = useFormPageFormId();
   const fileId = useId();
   const today = useLocalToday();
   const [date, setDate] = useState(today);
-  const [angle, setAngle] = useState("");
-  const label = photoLabel(angle, angles.data);
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const label = catalogLabelValue(selectedLabel, labels.data);
   const [jpeg, setJPEG] = useState<Blob>();
   const [stage, setStage] = useState<"Preparing…" | "Uploading…" | "Checking upload…">();
   const [fileError, setFileError] = useState<string>();
@@ -110,7 +110,7 @@ function NewPhotoForm() {
     }
   }
 
-  // Read-only once a submission exists: its ID, bytes, date and angle are one immutable attempt.
+  // Read-only once a submission exists: its ID, bytes, date and label are one immutable attempt.
   const submitted = Boolean(attempt.current);
   const isUploading = stage !== undefined && stage !== "Preparing…";
   return (
@@ -152,18 +152,22 @@ function NewPhotoForm() {
             metadata. Only your signed-in account can access it.
           </p>
         </div>
-        {angles.data ? (
-          <AngleSelect angles={angles.data} value={angle} onChange={setAngle} />
+        {labels.data ? (
+          <PhotoLabelSelect
+            labels={labels.data}
+            value={selectedLabel}
+            onChange={setSelectedLabel}
+          />
         ) : null}
         <PhotoDateInput value={date} today={today} onChange={setDate} />
       </fieldset>
-      {angles.isPending ? (
+      {labels.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">
-          Loading angles…
+          Loading labels…
         </p>
       ) : null}
-      {angles.isError ? (
-        <PhotoLoadError title="Couldn't load photo angles" retry={() => void angles.refetch()} />
+      {labels.isError ? (
+        <PhotoLoadError title="Couldn't load photo labels" retry={() => void labels.refetch()} />
       ) : null}
       {jpeg ? <PhotoPreview jpeg={jpeg} /> : null}
       {stage ? (

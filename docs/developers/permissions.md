@@ -354,7 +354,7 @@ No user update or replacement. The file grants apply to GraphQL and Storage REST
 
 ### Progress photos
 
-`progress_photo_labels` is an admin-managed Hasura enum table with user select only (`value`, `comment`). `progress_photos` has owner-only select, owner-preset insert of `label_value` and `taken_on`, a server-assigned UUID, and owner-only updates of `label_value` and `taken_on`. GraphQL exposes `labelValue` as the enum field and `label` as the catalog relationship. The file insert rule follows the reservation by UUID; the database requires the reservation to be unexpired and unused and attaches the file atomically. The `file` relationship is null until Storage initializes the upload; galleries filter on `file.isUploaded`. There is no direct user photo-row delete and no public access to either table.
+`progress_photo_labels` is an admin-managed Hasura enum table with user select only (`value`, `comment`). `progress_photos` has owner-only select and aggregation, owner-preset insert of `label_value` and `taken_on`, a server-assigned UUID, and owner-only updates of `label_value` and `taken_on`. GraphQL exposes `labelValue` as the enum field and `label` as the catalog relationship. The file insert rule follows the reservation by UUID; the database requires the reservation to be unexpired and unused and attaches the file atomically. The `file` relationship is null until Storage initializes the upload; the gallery and Body summary both filter on `file.isUploaded`. There is no direct user photo-row delete and no public access to either table.
 
 ## What `user` role is *not* allowed to touch
 

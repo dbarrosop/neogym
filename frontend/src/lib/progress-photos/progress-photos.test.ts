@@ -8,12 +8,12 @@ import { inspectImage } from "./image-headers";
 import { stripJpegMetadata } from "./jpeg";
 
 const id = "558e5143-0f20-4014-970e-50ed9e0a32a8";
-const fields = { label: ProgressPhotoLabel_Enum.Front, date: "2024-02-29" };
+const fields = { label: ProgressPhotoLabel_Enum.FrontA, date: "2024-02-29" };
 const photo: Photo = {
   id,
   takenOn: fields.date,
   createdAt: "2026-11-25T10:00:00.123456+00:00",
-  label: { value: fields.label, comment: "Front" },
+  label: { value: fields.label, comment: "Front A" },
   file: null,
 };
 const pending: Photo = { ...photo, file: { id, isUploaded: false } };

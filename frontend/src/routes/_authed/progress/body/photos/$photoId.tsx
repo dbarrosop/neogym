@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { PhotoDetailState } from "@/components/progress-photos/photo-detail-state";
-import { photoAngleName } from "@/components/progress-photos/photo-fields";
+import { photoLabelName } from "@/components/progress-photos/photo-fields";
 import { PhotoImage } from "@/components/progress-photos/photo-image";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ function PhotoViewer() {
     <PageShell maxWidth="5xl">
       <PhotoDetailState id={photoId}>
         {(photo) => {
-          const angle = photoAngleName(photo.label);
+          const label = photoLabelName(photo.label);
           const date = photoDateLabel(photo.takenOn);
           return (
             <>
@@ -38,11 +38,11 @@ function PhotoViewer() {
                 }
                 description={
                   <>
-                    {angle} · <time dateTime={photo.takenOn}>{date}</time>
+                    {label} · <time dateTime={photo.takenOn}>{date}</time>
                   </>
                 }
               />
-              <PhotoImage id={photo.file.id} alt={`${angle} progress photo, ${date}`} />
+              <PhotoImage id={photo.file.id} alt={`${label} progress photo, ${date}`} />
             </>
           );
         }}

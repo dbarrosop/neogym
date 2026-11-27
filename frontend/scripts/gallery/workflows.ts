@@ -43,6 +43,10 @@ export async function captureRoots(guide: GalleryDriver, id?: string): Promise<v
       await previous;
       await guide.run(`root-${root.id}`, root.title, async () => {
         await guide.open(root.path, root.heading);
+        if (root.id === "body") {
+          const summary = guide.page.getByRole("region", { name: "Progress photos", exact: true });
+          await expect(summary.getByText("0 photos", { exact: true })).toBeVisible();
+        }
         // Skeletons and GraphQL errors are checked by the driver, including the
         // optional report/history reads that otherwise leave browsing usable.
         await guide.shot("root", `${root.title}: ${guide.profile} section root`);

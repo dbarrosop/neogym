@@ -1667,13 +1667,21 @@ enum order_by {
 }
 enum progressPhotoLabel_enum {
   """
-  Back
+  Back A
   """
-  back
+  back_a
   """
-  Front
+  Back B
   """
-  front
+  back_b
+  """
+  Front A
+  """
+  front_a
+  """
+  Front B
+  """
+  front_b
 }
 """
 select columns of table "progress_photo_labels"
@@ -8392,6 +8400,41 @@ type progressPhotoLabel {
   comment: String
 }
 """
+aggregated selection of "progress_photos"
+"""
+type progressPhoto_aggregate {
+  aggregate: progressPhoto_aggregate_fields
+  nodes: [progressPhoto!]!
+}
+"""
+aggregate fields of "progress_photos"
+"""
+type progressPhoto_aggregate_fields {
+  count(columns: [progressPhoto_select_column!], distinct: Boolean): Int!
+  max: progressPhoto_max_fields
+  min: progressPhoto_min_fields
+}
+"""
+aggregate max on columns
+"""
+type progressPhoto_max_fields {
+  id: uuid
+  userId: uuid
+  takenOn: date
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+"""
+aggregate min on columns
+"""
+type progressPhoto_min_fields {
+  id: uuid
+  userId: uuid
+  takenOn: date
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+"""
 response of any mutation on the table "progress_photos"
 """
 type progressPhoto_mutation_response {
@@ -10112,6 +10155,35 @@ type query_root {
   fetch data from the table: "progress_photos" using primary key columns
   """
   progressPhoto(id: uuid!): progressPhoto
+  """
+  fetch aggregated fields from the table: "progress_photos"
+  """
+  progressPhotosAggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhoto_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhoto_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): progressPhoto_aggregate!
   """
   fetch data from the table: "workout_exercises"
   """
@@ -13004,6 +13076,35 @@ type subscription_root {
   fetch data from the table: "progress_photos" using primary key columns
   """
   progressPhoto(id: uuid!): progressPhoto
+  """
+  fetch aggregated fields from the table: "progress_photos"
+  """
+  progressPhotosAggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhoto_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhoto_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): progressPhoto_aggregate!
   """
   fetch data from the table in a streaming manner: "progress_photos"
   """

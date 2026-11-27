@@ -3178,13 +3178,21 @@ enum progressPhotoLabel_constraint {
 }
 enum progressPhotoLabel_enum {
   """
-  Back
+  Back A
   """
-  back
+  back_a
   """
-  Front
+  Back B
   """
-  front
+  back_b
+  """
+  Front A
+  """
+  front_a
+  """
+  Front B
+  """
+  front_b
 }
 """
 select columns of table "progress_photo_labels"

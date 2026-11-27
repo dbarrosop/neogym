@@ -9,10 +9,21 @@ import type {
 import type { PhotoScope } from "./scope";
 
 const PhotoLabels = graphql(`
-  query ProgressPhotoAngles {
+  query ProgressPhotoLabels {
     progressPhotoLabels(order_by: { value: asc }) {
       value
       comment
+    }
+  }
+`);
+
+const PhotoSummary = graphql(`
+  query ProgressPhotoSummary($where: progressPhoto_bool_exp!) {
+    progressPhotosAggregate(where: $where) {
+      aggregate {
+        count
+        max { takenOn }
+      }
     }
   }
 `);
@@ -61,14 +72,32 @@ export const JPEG_LIMIT = 5 * 1024 * 1024;
 export const PHOTO_PAGE_SIZE = 16;
 const PHOTO_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export type Photo = ProgressPhotoHistoryQuery["progressPhotos"][number];
-export type PhotoAngle = Photo["label"];
+export type PhotoLabel = Photo["label"];
+export type ReadyPhoto = Photo & { file: { id: string; isUploaded: true } };
 export type PhotoCursor = Pick<Photo, "takenOn" | "createdAt" | "id">;
 export type PhotoFields = { label: ProgressPhotoLabel_Enum; date: string };
 
-export function readyPhoto(photo: Photo | null | undefined): photo is Photo & {
-  file: { id: string; isUploaded: true };
-} {
+export function readyPhoto(photo: Photo | null | undefined): photo is ReadyPhoto {
   return Boolean(photo?.file?.isUploaded && photo.id === photo.file.id && PHOTO_ID.test(photo.id));
+}
+
+/** Group server-ordered rows across page boundaries without collapsing distinct uploads. */
+export function photosByDate(photos: readonly ReadyPhoto[]) {
+  const dates = new Map<string, ReadyPhoto[]>();
+  const seen = new Set<string>();
+  for (const photo of photos) {
+    if (seen.has(photo.id)) {
+      continue;
+    }
+    seen.add(photo.id);
+    const group = dates.get(photo.takenOn);
+    if (group) {
+      group.push(photo);
+    } else {
+      dates.set(photo.takenOn, [photo]);
+    }
+  }
+  return [...dates];
 }
 
 export function galleryWhere(
@@ -147,8 +176,22 @@ async function photoGraphQL<T, V>(
   return body.data;
 }
 
-export async function listAngles(scope: PhotoScope, signal: AbortSignal) {
+export async function listLabels(scope: PhotoScope, signal: AbortSignal) {
   return (await photoGraphQL(scope, PhotoLabels, {}, signal)).progressPhotoLabels;
+}
+
+export async function readPhotoSummary(scope: PhotoScope, signal: AbortSignal) {
+  const { progressPhotosAggregate } = await photoGraphQL(
+    scope,
+    PhotoSummary,
+    { where: galleryWhere(scope.owner, null, null) },
+    signal,
+  );
+  const aggregate = progressPhotosAggregate.aggregate;
+  if (!aggregate) {
+    throw new Error("Photo summary unavailable.");
+  }
+  return { count: aggregate.count, latestDate: aggregate.max?.takenOn ?? null };
 }
 
 export async function listPhotos(
@@ -163,10 +206,14 @@ export async function listPhotos(
     { where: galleryWhere(scope.owner, label, cursor), limit: PHOTO_PAGE_SIZE + 1 },
     signal,
   );
-  return {
-    items: progressPhotos.slice(0, PHOTO_PAGE_SIZE).filter(readyPhoto),
-    hasNext: progressPhotos.length > PHOTO_PAGE_SIZE,
-  };
+  const visible = progressPhotos.slice(0, PHOTO_PAGE_SIZE);
+  const last = visible.at(-1);
+  let nextCursor: PhotoCursor | undefined;
+  if (last && progressPhotos.length > PHOTO_PAGE_SIZE) {
+    const { takenOn, createdAt, id } = last;
+    nextCursor = { takenOn, createdAt, id };
+  }
+  return { items: visible.filter(readyPhoto), nextCursor };
 }
 
 export async function readPhoto(scope: PhotoScope, id: string, signal = scope.signal) {

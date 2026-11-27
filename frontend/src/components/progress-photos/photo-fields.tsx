@@ -5,73 +5,73 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProgressPhotoLabel_Enum } from "@/gql/graphql";
-import { listAngles, type PhotoAngle } from "@/lib/progress-photos/api";
+import { listLabels, type PhotoLabel } from "@/lib/progress-photos/api";
 import { usePhotoScope } from "./photo-boundary";
 
-export function photoAngleName(angle: PhotoAngle) {
-  return angle.comment?.trim() || angle.value;
+export function photoLabelName(label: PhotoLabel) {
+  return label.comment?.trim() || label.value;
 }
 
-export function photoLabel(value: string, angles: PhotoAngle[] | undefined) {
-  const row = angles?.find((angle) => angle.value === value);
+export function catalogLabelValue(value: string, labels: PhotoLabel[] | undefined) {
+  const row = labels?.find((label) => label.value === value);
   // Hasura validates its current enum. The deployed catalog can be newer than
   // the generated TS snapshot; only convert values returned in that catalog.
   return row ? (row.value as ProgressPhotoLabel_Enum) : null;
 }
 
-export function usePhotoAngles() {
+export function usePhotoLabels() {
   const scope = usePhotoScope();
   return useQuery({
-    queryKey: ["photo-angles", scope.owner],
-    queryFn: ({ signal }) => listAngles(scope, signal),
+    queryKey: ["photo-labels", scope.owner],
+    queryFn: ({ signal }) => listLabels(scope, signal),
   });
 }
 
-export function AngleSelect({
-  angles,
+export function PhotoLabelSelect({
+  labels,
   value,
   onChange,
   includeAll,
 }: {
-  angles: PhotoAngle[];
+  labels: PhotoLabel[];
   value: string;
   onChange: (value: string) => void;
   includeAll?: boolean;
 }) {
   const id = useId();
-  const unavailable = Boolean(value && !photoLabel(value, angles));
-  const noAngles = !includeAll && angles.length === 0;
+  const unavailable = Boolean(value && !catalogLabelValue(value, labels));
+  const noLabels = !includeAll && labels.length === 0;
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{includeAll ? "Filter by angle" : "Angle"}</Label>
+      <Label htmlFor={id}>{includeAll ? "Filter by label" : "Label"}</Label>
       <select
         id={id}
         className="block min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring"
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
         required={!includeAll}
-        aria-describedby={unavailable || noAngles ? `${id}-status` : undefined}
+        aria-describedby={unavailable || noLabels ? `${id}-status` : undefined}
         autoComplete="off"
       >
         {unavailable ? (
           <option value={value} disabled>
-            Angle unavailable
+            Label unavailable
           </option>
         ) : null}
         <option value="" disabled={!includeAll}>
-          {includeAll ? "All angles" : "Choose an angle"}
+          {includeAll ? "All labels" : "Choose a label"}
         </option>
-        {angles.map((angle) => (
-          <option key={angle.value} value={angle.value}>
-            {photoAngleName(angle)}
+        {labels.map((label) => (
+          <option key={label.value} value={label.value}>
+            {photoLabelName(label)}
           </option>
         ))}
       </select>
-      {unavailable || noAngles ? (
+      {unavailable || noLabels ? (
         <p id={`${id}-status`} role="alert" className="text-sm text-destructive">
-          {noAngles
-            ? "No photo angles are available."
-            : "This angle is no longer available. Choose another option."}
+          {noLabels
+            ? "No photo labels are available."
+            : "This label is no longer available. Choose another option."}
         </p>
       ) : null}
     </div>

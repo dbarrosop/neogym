@@ -924,17 +924,20 @@ These are retained results, not a new run of the browser workflows.
 **Status:** passed
 
 1. Open /progress/body
-2. Follow Progress photos from Body to the empty history
-3. Choose a synthetic PNG, select Front, backdate it and upload
-4. Upload a second illustration with the same date and angle, then return to the gallery
-5. Open the newer photo; edit its date and angle without choosing a new image
-6. Return to the gallery and set the angle filter to Back
+2. Open the photo summary card on Body and go to the empty history
+3. Choose a synthetic PNG, select Front A, backdate it and upload
+4. Upload a second illustration with the same date and label, then return to the gallery
+5. Open the newer photo; edit its date and label without choosing a new image
+6. Check that the edited photo moves to the newest date row, then filter by Back B
 7. Open the filtered photo, edit it, and confirm Delete photo
+8. Return to Body and confirm its photo count and latest date
+9. Open /progress/body
 
 **Verified outcomes**
 
-- A fresh backend read contains two distinct ready files with the same backdated Front metadata; Back returns to the gallery, not the spent upload form
-- The edit changed only the date and angle, retaining the same file ID; the Back filter shows only that photo
+- A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form
+- The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo
+- Body shows one ready photo and its date after the deletion
 - A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains
 - The runner removed the remaining synthetic upload through Storage after capture
 
@@ -942,12 +945,13 @@ These are retained results, not a new run of the browser workflows.
 
 - [Progress photos: empty private history and the Add photo action](screenshots/desktop-progress-photos-empty.png)
 - [Add photo: preview a generated illustration and choose an earlier date](screenshots/desktop-progress-photos-prepared.png)
-- [Photo viewer: the uploaded illustration with its angle and date taken](screenshots/desktop-progress-photos-viewer.png)
-- [Gallery: two distinct uploads sharing the same date and angle](screenshots/desktop-progress-photos-duplicates.png)
-- [Edit photo: correct the date and angle without replacing the image](screenshots/desktop-progress-photos-edit.png)
-- [Gallery: the Back filter shows only the corrected photo](screenshots/desktop-progress-photos-filtered.png)
+- [Photo viewer: the uploaded illustration with its label and date taken](screenshots/desktop-progress-photos-viewer.png)
+- [Timeline: two distinct uploads on a single date row](screenshots/desktop-progress-photos-duplicates.png)
+- [Edit photo: correct the date and label without replacing the image](screenshots/desktop-progress-photos-edit.png)
+- [Gallery: the Back B filter shows only the corrected photo](screenshots/desktop-progress-photos-filtered.png)
 - [Delete photo: explicit confirmation before removing the selected image](screenshots/desktop-progress-photos-confirm.png)
-- [Gallery: the other Front photo remains after deletion](screenshots/desktop-progress-photos-deleted.png)
+- [Gallery: the other Front A photo remains after deletion](screenshots/desktop-progress-photos-deleted.png)
+- [Timeline: newest date first, with one row per photo date](screenshots/desktop-progress-photos-timeline.png)
 
 <a id="mobile-progress-photos"></a>
 
@@ -956,17 +960,20 @@ These are retained results, not a new run of the browser workflows.
 **Status:** passed
 
 1. Open /progress/body
-2. Follow Progress photos from Body to the empty history
-3. Choose a synthetic PNG, select Front, backdate it and upload
-4. Upload a second illustration with the same date and angle, then return to the gallery
-5. Open the newer photo; edit its date and angle without choosing a new image
-6. Return to the gallery and set the angle filter to Back
+2. Open the photo summary card on Body and go to the empty history
+3. Choose a synthetic PNG, select Front A, backdate it and upload
+4. Upload a second illustration with the same date and label, then return to the gallery
+5. Open the newer photo; edit its date and label without choosing a new image
+6. Check that the edited photo moves to the newest date row, then filter by Back B
 7. Open the filtered photo, edit it, and confirm Delete photo
+8. Return to Body and confirm its photo count and latest date
+9. Open /progress/body
 
 **Verified outcomes**
 
-- A fresh backend read contains two distinct ready files with the same backdated Front metadata; Back returns to the gallery, not the spent upload form
-- The edit changed only the date and angle, retaining the same file ID; the Back filter shows only that photo
+- A fresh backend read contains two distinct ready files with the same backdated Front A label; Back returns to the gallery, not the spent upload form
+- The edit changed only the date and label, retaining the same file ID; the Back B filter shows only that photo
+- Body shows one ready photo and its date after the deletion
 - A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains
 - The runner removed the remaining synthetic upload through Storage after capture
 
@@ -974,9 +981,10 @@ These are retained results, not a new run of the browser workflows.
 
 - [Progress photos: empty private history and the Add photo action](screenshots/mobile-progress-photos-empty.png)
 - [Add photo: preview a generated illustration and choose an earlier date](screenshots/mobile-progress-photos-prepared.png)
-- [Photo viewer: the uploaded illustration with its angle and date taken](screenshots/mobile-progress-photos-viewer.png)
-- [Gallery: two distinct uploads sharing the same date and angle](screenshots/mobile-progress-photos-duplicates.png)
-- [Edit photo: correct the date and angle without replacing the image](screenshots/mobile-progress-photos-edit.png)
-- [Gallery: the Back filter shows only the corrected photo](screenshots/mobile-progress-photos-filtered.png)
+- [Photo viewer: the uploaded illustration with its label and date taken](screenshots/mobile-progress-photos-viewer.png)
+- [Timeline: two distinct uploads on a single date row](screenshots/mobile-progress-photos-duplicates.png)
+- [Edit photo: correct the date and label without replacing the image](screenshots/mobile-progress-photos-edit.png)
+- [Gallery: the Back B filter shows only the corrected photo](screenshots/mobile-progress-photos-filtered.png)
 - [Delete photo: explicit confirmation before removing the selected image](screenshots/mobile-progress-photos-confirm.png)
-- [Gallery: the other Front photo remains after deletion](screenshots/mobile-progress-photos-deleted.png)
+- [Gallery: the other Front A photo remains after deletion](screenshots/mobile-progress-photos-deleted.png)
+- [Timeline: newest date first, with one row per photo date](screenshots/mobile-progress-photos-timeline.png)
