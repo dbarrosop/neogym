@@ -173,8 +173,9 @@ their original provenance and are marked “Reused view”. Browser viewport cap
 private fixtures. No production sessions, shared-data writes or database resets are used. Fonts, the browser's
 application date and the seeded history are pinned; Auth, database and provenance clocks remain real.</p>
 <p>The catalog covers every web section root and representative OTP verification, Today summaries, session logging
-and editing, exercise details, nutrition logging and editing, progress charts, journal CRUD and appearance workflows.
-It is not exhaustive CRUD, state, tablet or browser compatibility coverage. Health/Watch actions remain native-only.</p>
+and editing, exercise details, nutrition logging and editing, progress charts, progress photos with synthetic illustrations,
+journal CRUD and appearance workflows. It is not exhaustive CRUD, state, tablet or browser compatibility coverage.
+Health/Watch actions remain native-only.</p>
 <p>“Apple Health” markers are fictional fixture notes demonstrating read-only source presentation, not evidence of an import.
 Recorded backend checks do not replace the backend permission/integrity suite. Offline validation verifies retained
 evidence and file integrity; it does not rerun browser workflows.</p>
@@ -205,12 +206,19 @@ def render_workflows(output, manifest):
     lines = ["# Recorded web walkthroughs", "", "Generated from `capture-manifest.json`; do not edit by hand.", "",
              "[Gallery](gallery.html) · [Capture instructions](capture.md)", "",
              "These are retained results, not a new run of the browser workflows."]
+    # Each workflow's frames in gallery-layout (catalog) order. The manifest appends frames
+    # a later refresh adds, so its order alone can put them after the walkthrough's end.
     row_frames = {}
     for _, _, rows in layout():
         for row in rows:
-            row_frames.setdefault(row["source"], set()).update(row.get("images", []))
+            frames = row_frames.setdefault(row["source"], [])
+            frames += [frame for frame in row.get("images", []) if frame not in frames]
+    by_id = {image["id"]: image for image in manifest["screenshots"]}
     for workflow in manifest["workflows"]:
         identifier = workflow["id"]
+        images = [by_id[frame] for frame in row_frames.get(identifier, []) if frame in by_id]
+        images += [image for image in manifest["screenshots"]
+                   if image["workflow"] == identifier and image not in images]
         lines += ["", '<a id="' + html.escape(identifier, quote=True) + '"></a>', "",
                   "## " + workflow["title"], "", "**Status:** " + workflow["status"], ""]
         lines += [str(index) + ". " + step for index, step in enumerate(workflow["steps"], 1)]
@@ -218,8 +226,7 @@ def render_workflows(output, manifest):
         lines += ["", "**Screenshots**", ""] + [
             "- [" + image["title"] + "](" + image["file"] + ")"
             + (" (reused view)" if image["workflow"] != identifier else "")
-            for image in manifest["screenshots"]
-            if image["workflow"] == identifier or image["id"] in row_frames[identifier]]
+            for image in images]
     (Path(output) / "workflows.md").write_text("\n".join(lines) + "\n")
 
 

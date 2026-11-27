@@ -66,9 +66,16 @@ request. Training, nutrition, measurements and journal fixtures are inserted
 through real user-role GraphQL, as are the subsequent app writes. The database
 can allocate fresh row IDs; walkthroughs record route shapes rather than those
 IDs, and the IDs aren’t rendered. No admin secret, production session or
-persistent credential file is used. The last layout’s
-fictional rows remain until the next capture. Do not run captures concurrently;
-a workspace lock enforces this. If the process was forcibly killed, remove
+persistent credential file is used. The last layout’s common fictional rows
+remain until the next capture. The photo walkthrough produces both illustrations
+in memory and requires an empty owner photo history. Its teardown deletes, through
+local Storage, every file the reserved account uploaded to the photo bucket. That
+includes leftovers from a forcibly killed run: the reset recreates the account with
+the same ID, which hides the old photo rows but not their files, so the next
+completed photo capture removes them. Reservations that never acquired a file use
+ordinary expiry. This verifies visibility and cleanup requests, not
+physical object removal. Do not run captures concurrently; a workspace lock
+enforces this. If the process was forcibly killed, remove
 `.nhost-code/tmp/web-gallery.lock` only after confirming it is no longer running.
 
 Browser traffic is allowlisted to the local frontend/Auth/GraphQL/Storage origins.
@@ -100,6 +107,10 @@ explicit operator action—not something the capture does automatically.
 # Example: rerun the session workflow in each layout
 nix develop .. --command bun run gallery:capture \
   --output ../.nhost-code/tmp/web-gallery-baseline --group session
+
+# Refresh progress photos and the Body entry point, in both layouts
+nix develop .. --command bun run gallery:capture \
+  --output ../.nhost-code/tmp/web-gallery-baseline --group progress-photos
 
 # Example: inspect just the mobile roots in a fresh diagnostic catalog
 nix develop .. --command bun run gallery:capture \
@@ -252,11 +263,12 @@ cross-browser guarantee.
 | `frontend/scripts/gallery/capture.ts` | CLI, isolated Chromium contexts, local OTP setup and provenance |
 | `frontend/scripts/gallery/profile.json` | Fixed browser time, raster settings, fixture version and reserved fictional account |
 | `frontend/scripts/gallery/seed.ts`, `seed.sql` | Workspace-scoped reset, account and energy fixture |
-| `frontend/scripts/gallery/backend.ts` | Fixed local endpoints, user GraphQL requests and fresh MailHog OTP |
+| `frontend/scripts/gallery/backend.ts` | Fixed local endpoints, user GraphQL requests, fresh MailHog OTP and deletion of the walkthrough's own photo files through local Storage |
 | `frontend/scripts/gallery/fixtures.ts` | Private user-role fixture mutations and relative dates |
 | `frontend/scripts/gallery/driver.ts` | Readiness/network checks, screenshots and manifest updates |
 | `frontend/scripts/gallery/workflows.ts` | Real UI actions and fresh backend outcome checks |
+| `frontend/scripts/gallery/progress-photos.ts` | Progress-photo walkthrough: generated illustrations, owner-role photo checks and Storage teardown of its uploads |
 | `tools/gallery.py` | Shared iOS/web HTML/CSS/JS renderer |
-| `tools/web-gallery.py` | Web completeness/integrity gate, ordering and generated indexes |
+| `tools/web-gallery.py` | Web completeness/integrity gate, ordering (workflow screenshots follow catalog order) and generated indexes |
 | `docs/web/capture-manifest.json` | Retained workflow outcomes and screenshot provenance |
 | `docs/web/gallery.html`, `docs/web/workflows.md` | Generated static documentation |

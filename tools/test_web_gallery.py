@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import runpy
 import struct
 import tempfile
@@ -58,12 +59,19 @@ class WebGalleryTests(unittest.TestCase):
     def test_complete_catalog_and_separate_crud_rows(self):
         manifest, sections = TOOLS["validate_catalog"](self.output)
         rows = [row for section in sections for row in section["rows"]]
-        self.assertEqual(len(manifest["workflows"]), 50)
-        self.assertEqual(len(manifest["screenshots"]), 99)
-        self.assertEqual(len(rows), 54)
+        self.assertEqual(len(manifest["workflows"]), 52)
+        self.assertEqual(len(manifest["screenshots"]), 117)
+        self.assertEqual(len(rows), 56)
         self.assertIn("mobile-root-overview", [row["id"] for row in rows])
         self.assertEqual([row["id"] for row in rows if row["id"].startswith("mobile-journal-")],
                          ["mobile-journal-create", "mobile-journal-edit", "mobile-journal-delete"])
+        for profile in ("desktop", "mobile"):
+            source = profile + "-progress-photos"
+            photo_row = next(row for row in rows if row["id"] == source)
+            self.assertEqual([image["id"] for image in photo_row["images"]], [
+                source + "-" + frame for frame in
+                ("empty", "prepared", "timeline", "viewer", "edit", "compare", "filtered", "confirm", "deleted")
+            ])
 
     def test_desktop_today_summary_reuses_the_root_while_mobile_shows_both_cards(self):
         _, sections = TOOLS["validate_catalog"](self.output)
@@ -75,6 +83,19 @@ class WebGalleryTests(unittest.TestCase):
         TOOLS["render_workflows"](self.output, self.manifest)
         self.assertIn("(screenshots/desktop-root-today-root.png) (reused view)",
                       (self.output / "workflows.md").read_text())
+
+    def test_workflow_screenshots_follow_catalog_order_not_manifest_order(self):
+        # A targeted refresh appends newly registered frames at the end of the manifest.
+        self.manifest["screenshots"].reverse()
+        TOOLS["render_workflows"](self.output, self.manifest)
+        text = (self.output / "workflows.md").read_text()
+        for profile in ("desktop", "mobile"):
+            source = profile + "-progress-photos"
+            section = text.split('<a id="' + source + '"></a>', 1)[1].split("<a id=", 1)[0]
+            self.assertEqual(re.findall(r"\]\((screenshots/[^)]+)\)", section), [
+                "screenshots/" + source + "-" + frame + ".png" for frame in
+                ("empty", "prepared", "timeline", "viewer", "edit", "compare", "filtered", "confirm", "deleted")
+            ])
 
     def test_renderer_uses_actual_web_dimensions_and_escapes_titles(self):
         self.manifest["screenshots"][0]["title"] = '<script>alert("bad")</script>'

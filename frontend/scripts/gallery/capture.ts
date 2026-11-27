@@ -16,6 +16,7 @@ import catalog from "./catalog.json";
 import { GalleryDriver, guardNetwork, type Manifest, saveManifest } from "./driver";
 import { seedFixtures } from "./fixtures";
 import fixture from "./profile.json";
+import { captureProgressPhotos } from "./progress-photos";
 import { galleryDate, galleryPostgres, lockGallery, seedGalleryAccount } from "./seed";
 import {
   captureAppearance,
@@ -205,6 +206,9 @@ async function captureProfile(
     const ids = await seedFixtures(backend, galleryDate);
     if (options.group === "all" || options.group === "roots") {
       await captureRoots(guide);
+    } else if (options.group === "progress-photos") {
+      // Refresh the existing Body root with its photo summary in the same targeted capture.
+      await captureRoots(guide, "body");
     }
     const actions: Record<string, () => Promise<void>> = {
       "today-summary": () => captureTodaySummary(guide),
@@ -214,6 +218,7 @@ async function captureProfile(
       "plan-edit": () => capturePlanEdit(guide, backend, ids),
       "meal-edit": () => captureMealEdit(guide, backend, ids),
       "progress-calories": () => captureProgressCalories(guide),
+      "progress-photos": () => captureProgressPhotos(guide, backend, galleryDate),
       "journal-crud": () => captureJournal(guide, backend),
       appearance: () => captureAppearance(guide),
     };

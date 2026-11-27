@@ -46,6 +46,10 @@ mock.module("@/components/progress/quick-entry-forms", () => ({
   QuickDailyEnergyForm: () => null,
 }));
 mock.module("@/components/today-energy-estimate", () => ({ TodayEnergyEstimate: () => null }));
+// Body's photo card reads its own count; it isn't a chart (see progress-photos.fixture.tsx).
+mock.module("@/components/progress-photos/photo-summary-card", () => ({
+  PhotoSummaryCard: () => null,
+}));
 mock.module("@/lib/nhost/auth-provider", () => ({
   useAuth: () => ({ user: { id: "test-user" } }),
 }));

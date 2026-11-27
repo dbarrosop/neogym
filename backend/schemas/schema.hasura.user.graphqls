@@ -1667,13 +1667,21 @@ enum order_by {
 }
 enum progressPhotoLabel_enum {
   """
-  Back
+  Back A
   """
-  back
+  back_a
   """
-  Front
+  Back B
   """
-  front
+  back_b
+  """
+  Front A
+  """
+  front_a
+  """
+  Front B
+  """
+  front_b
 }
 """
 select columns of table "progress_photo_labels"
@@ -8346,6 +8354,41 @@ type progressPhotoLabel {
   value: String!
 }
 """
+aggregated selection of "progress_photos"
+"""
+type progressPhoto_aggregate {
+  aggregate: progressPhoto_aggregate_fields
+  nodes: [progressPhoto!]!
+}
+"""
+aggregate fields of "progress_photos"
+"""
+type progressPhoto_aggregate_fields {
+  count(columns: [progressPhoto_select_column!], distinct: Boolean): Int!
+  max: progressPhoto_max_fields
+  min: progressPhoto_min_fields
+}
+"""
+aggregate max on columns
+"""
+type progressPhoto_max_fields {
+  createdAt: timestamptz
+  id: uuid
+  takenOn: date
+  updatedAt: timestamptz
+  userId: uuid
+}
+"""
+aggregate min on columns
+"""
+type progressPhoto_min_fields {
+  createdAt: timestamptz
+  id: uuid
+  takenOn: date
+  updatedAt: timestamptz
+  userId: uuid
+}
+"""
 response of any mutation on the table "progress_photos"
 """
 type progressPhoto_mutation_response {
@@ -10167,6 +10210,35 @@ type query_root {
     """
     where: progressPhoto_bool_exp
   ): [progressPhoto!]!
+  """
+  fetch aggregated fields from the table: "progress_photos"
+  """
+  progressPhotosAggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhoto_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhoto_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): progressPhoto_aggregate!
   """
   execute function "strength_progress" which returns "exercise_strength_history_rows"
   """
@@ -13097,6 +13169,35 @@ type subscription_root {
     """
     where: progressPhoto_bool_exp
   ): [progressPhoto!]!
+  """
+  fetch aggregated fields from the table: "progress_photos"
+  """
+  progressPhotosAggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhoto_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhoto_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): progressPhoto_aggregate!
   """
   execute function "strength_progress" which returns "exercise_strength_history_rows"
   """

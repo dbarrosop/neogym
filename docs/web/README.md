@@ -8,8 +8,8 @@ with fictional private data. It is static documentation, separate from the deplo
 app: open `gallery.html` directly in a browser, keeping `screenshots/` beside it.
 Viewing needs no backend, dev server, Playwright or internet connection.
 
-The catalog contains **99 original viewport screenshots**, **50 recorded
-walkthroughs** and **54 visual rows**. The desktop Today summary and Journal
+The catalog contains **117 original viewport screenshots**, **52 recorded
+walkthroughs** and **56 visual rows**. The desktop Today summary and Journal
 create/edit/delete rows reuse context frames rather than duplicating screenshots. Each row
 reads left to right; search filters by words, and Screen size changes presentation
 size without changing the original PNGs.
@@ -68,6 +68,13 @@ The following representative workflows add intermediate states and assertions:
   totals, and check that the plan reference prevents deletion.
 - **Progress Overview and Calories:** follow the Energy shortcut, inspect the
   Consumed and Net charts, and change only the Calories period.
+- **Private progress photos:** open the gallery from the Body photo card, check
+  in generated Front A and Back A illustrations on an earlier date, then a later
+  Front A, and read the contact sheet with its Add slot. Step between the Front A
+  photos, correct a date in the edit dialog, compare the two, filter by label and
+  confirm deletion. Fresh owner-role reads verify the files and dates, and Body
+  shows the count, latest date and its photo. All pictured images are synthetic,
+  not photos of real people.
 - **Journal create/edit/delete:** save Markdown, edit the title, confirm deletion
   and return to the list. Fresh backend reads confirm each outcome.
 - **Appearance:** select Light, navigate to Today, then restore Dark.

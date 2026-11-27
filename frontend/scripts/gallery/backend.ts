@@ -32,6 +32,8 @@ interface Envelope<T> {
   errors?: { message: string }[];
 }
 
+const PHOTO_ID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+
 export class CaptureBackend {
   constructor(
     private readonly request: APIRequestContext,
@@ -54,6 +56,19 @@ export class CaptureBackend {
       );
     }
     return result.data;
+  }
+
+  async removeFixturePhoto(id: string): Promise<void> {
+    if (!PHOTO_ID.test(id)) {
+      throw new Error("Invalid gallery photo ID");
+    }
+    const response = await this.request.delete(`${LOCAL_STORAGE}/files/${id}`, {
+      headers: { authorization: `Bearer ${this.token}` },
+      maxRedirects: 0,
+    });
+    if (!response.ok()) {
+      throw new Error(`Local gallery photo cleanup returned HTTP ${response.status()}`);
+    }
   }
 }
 

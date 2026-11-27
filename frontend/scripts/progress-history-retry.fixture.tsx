@@ -111,6 +111,10 @@ mock.module("@/lib/graphql", () => ({
             notes: null,
           })),
         });
+      case "ProgressPhotoSummary":
+        return Promise.resolve({
+          progressPhotosAggregate: { aggregate: { count: 0, max: { takenOn: null } } },
+        });
       default:
         throw new Error("Unexpected operation");
     }
@@ -260,14 +264,22 @@ try {
   );
   await waitFor(() => container.textContent?.includes("7 of 15 entries") === true);
   const measurements = section("Measurements");
-  const bodyTrend = container.querySelector("h2");
-  assert(bodyTrend?.textContent === "Weight & body fat");
+  const bodyTrendHeading = () =>
+    [...container.querySelectorAll("h2")].find((node) => node.textContent === "Weight & body fat");
+  const bodyTrend = bodyTrendHeading();
+  assert(bodyTrend);
+  // The trend and its table stay together; the photo card sits in the side column.
+  assert.equal(bodyTrend.closest("section")?.nextElementSibling, measurements);
+  const photoCard = [...container.querySelectorAll("h2")]
+    .find((node) => node.textContent === "Progress photos")
+    ?.closest("section");
+  assert(photoCard && !photoCard.parentElement?.contains(measurements));
   await settle(() => button("Load more", measurements).click());
   failBody = true;
   await settle(() => client.invalidateQueries({ queryKey: bodyMeasurementsQueryKey("me") }));
   await waitFor(() => container.textContent?.includes("Couldn't load body measurements") === true);
   assert.equal(section("Measurements"), measurements);
-  assert.equal(container.querySelector("h2"), bodyTrend);
+  assert.equal(bodyTrendHeading(), bodyTrend);
   assert(measurements.textContent?.includes("14 of 15 entries"));
   failBody = false;
   await settle(() => button("Retry").click());

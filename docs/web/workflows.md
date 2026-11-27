@@ -916,3 +916,81 @@ These are retained results, not a new run of the browser workflows.
 - [Account: Light appearance selected](screenshots/mobile-appearance-light.png)
 - [Today: Light appearance persists across navigation](screenshots/mobile-appearance-today.png)
 - [Account: Dark appearance restored](screenshots/mobile-appearance-dark.png)
+
+<a id="desktop-progress-photos"></a>
+
+## Check in, browse, compare, correct and delete private progress photos · desktop
+
+**Status:** passed
+
+1. Open /progress/body
+2. Open the photo card on Body and go to the empty history
+3. Check in Front A and Back A illustrations on one earlier date
+4. Check in a later Front A only
+5. Open the newer Front A, step to the older one and back
+6. Correct the newer photo's date in the edit dialog
+7. Compare the older and newer Front A photos
+8. Filter the gallery to Front A
+9. Open /progress/body/photos
+10. Open the older Front A and confirm Delete photo
+11. Return to Body and check its photo card
+12. Open /progress/body
+
+**Verified outcomes**
+
+- A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one
+- The edit changed only the date, keeping the same file ID and label
+- Body shows two ready photos, the latest date and that date's photo
+- A fresh backend read confirms that the deleted photo is inaccessible and the other two remain
+- The runner removed the remaining synthetic upload through Storage after capture
+
+**Screenshots**
+
+- [Progress photos: empty private history and the Add photos action](screenshots/desktop-progress-photos-empty.png)
+- [Add photos: one date, with a generated illustration in the Front A and Back A slots](screenshots/desktop-progress-photos-prepared.png)
+- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/desktop-progress-photos-timeline.png)
+- [Photo viewer: the label as title, then older and newer Front A photos](screenshots/desktop-progress-photos-viewer.png)
+- [Edit details: correct the date without replacing the image](screenshots/desktop-progress-photos-edit.png)
+- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/desktop-progress-photos-compare.png)
+- [Gallery: the Front A filter shows that label over time](screenshots/desktop-progress-photos-filtered.png)
+- [Delete photo: explicit confirmation before removing the image](screenshots/desktop-progress-photos-confirm.png)
+- [Gallery: the first date keeps its Back A, with an Add slot where Front A was](screenshots/desktop-progress-photos-deleted.png)
+
+<a id="mobile-progress-photos"></a>
+
+## Check in, browse, compare, correct and delete private progress photos · mobile
+
+**Status:** passed
+
+1. Open /progress/body
+2. Open the photo card on Body and go to the empty history
+3. Check in Front A and Back A illustrations on one earlier date
+4. Check in a later Front A only
+5. Open the newer Front A, step to the older one and back
+6. Correct the newer photo's date in the edit dialog
+7. Compare the older and newer Front A photos
+8. Filter the gallery to Front A
+9. Open /progress/body/photos
+10. Open the older Front A and confirm Delete photo
+11. Return to Body and check its photo card
+12. Open /progress/body
+
+**Verified outcomes**
+
+- A fresh backend read has three ready files: Front A and Back A on the first date, Front A on the later one
+- The edit changed only the date, keeping the same file ID and label
+- Body shows two ready photos, the latest date and that date's photo
+- A fresh backend read confirms that the deleted photo is inaccessible and the other two remain
+- The runner removed the remaining synthetic upload through Storage after capture
+
+**Screenshots**
+
+- [Progress photos: empty private history and the Add photos action](screenshots/mobile-progress-photos-empty.png)
+- [Add photos: one date, with a generated illustration in the Front A and Back A slots](screenshots/mobile-progress-photos-prepared.png)
+- [Contact sheet: a row per date, labels in columns, and an Add slot for the missing Back A](screenshots/mobile-progress-photos-timeline.png)
+- [Photo viewer: the label as title, then older and newer Front A photos](screenshots/mobile-progress-photos-viewer.png)
+- [Edit details: correct the date without replacing the image](screenshots/mobile-progress-photos-edit.png)
+- [Compare: older and newer Front A, with the time between and the body-weight change](screenshots/mobile-progress-photos-compare.png)
+- [Gallery: the Front A filter shows that label over time](screenshots/mobile-progress-photos-filtered.png)
+- [Delete photo: explicit confirmation before removing the image](screenshots/mobile-progress-photos-confirm.png)
+- [Gallery: the first date keeps its Back A, with an Add slot where Front A was](screenshots/mobile-progress-photos-deleted.png)

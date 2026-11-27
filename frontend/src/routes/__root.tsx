@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-router";
 // import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { type ReactNode, useEffect, useState } from "react";
+import { PhotoCacheGuard } from "@/components/progress-photos/photo-session";
 import { PWAUpdatePrompt } from "@/components/pwa-update-prompt";
 import { AppFrame, isBarePublicPage } from "@/components/shell/app-frame";
 import { Toaster } from "@/components/ui/sonner";
@@ -67,6 +68,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
+              <PhotoCacheGuard />
               <AppFrame>{children}</AppFrame>
               <AppToaster />
               <PWAUpdatePrompt />

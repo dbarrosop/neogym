@@ -9,6 +9,7 @@ import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-s
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Segmented } from "@/components/patterns/segmented";
 import { QuickBodyMeasurementForm } from "@/components/progress/quick-entry-forms";
+import { PhotoSummaryCard } from "@/components/progress-photos/photo-summary-card";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,47 +55,29 @@ const SIDE_COLUMN = "min-w-0 @min-[560px]:max-w-[340px] @min-[860px]:max-w-none"
 
 function BodyRoute() {
   const query = useBodyMeasurements();
+  const measurements = query.data?.bodyMeasurements;
 
-  function renderContent() {
+  function renderTrend() {
     if (query.isPending) {
       return (
-        <SkeletonState className="flex flex-col gap-5">
+        <SkeletonState>
           <Skeleton className="h-[330px] w-full rounded-xl" />
-          <Skeleton className="h-60 w-full rounded-xl" />
         </SkeletonState>
       );
     }
-    const error = query.error ? (
-      <ErrorState
-        title="Couldn't load body measurements"
-        message={query.error.message}
-        onRetry={() => query.refetch()}
-        isRetrying={query.isFetching}
-      />
-    ) : null;
-    if (!query.data) {
-      return error;
+    if (!measurements) {
+      return null;
     }
-    const measurements = query.data.bodyMeasurements;
     if (measurements.length === 0) {
       return (
-        <div className="flex min-w-0 flex-col gap-5">
-          {error}
-          <EmptyState
-            icon={Scale}
-            title="No measurements yet"
-            description="Log weight or body fat to see your trend here."
-          />
-        </div>
+        <EmptyState
+          icon={Scale}
+          title="No measurements yet"
+          description="Log weight or body fat to see your trend here."
+        />
       );
     }
-    return (
-      <div className="flex min-w-0 flex-col gap-5">
-        {error}
-        <BodyTrendCard measurements={measurements} />
-        <MeasurementsTable measurements={measurements} />
-      </div>
-    );
+    return <BodyTrendCard measurements={measurements} />;
   }
 
   return (
@@ -112,9 +95,26 @@ function BodyRoute() {
         }
       />
       <div className={`grid items-start gap-5 ${SIDE_BY_SIDE}`}>
-        {renderContent()}
-        <div className={SIDE_COLUMN}>
+        <div className="flex min-w-0 flex-col gap-5">
+          {query.error ? (
+            <ErrorState
+              title="Couldn't load body measurements"
+              message={query.error.message}
+              onRetry={() => query.refetch()}
+              isRetrying={query.isFetching}
+            />
+          ) : null}
+          {renderTrend()}
+          {query.isPending ? (
+            <Skeleton aria-hidden="true" className="h-60 w-full rounded-xl" />
+          ) : null}
+          {measurements && measurements.length > 0 ? (
+            <MeasurementsTable measurements={measurements} />
+          ) : null}
+        </div>
+        <div className={`flex flex-col gap-5 ${SIDE_COLUMN}`}>
           <QuickBodyMeasurementForm />
+          <PhotoSummaryCard />
         </div>
       </div>
     </PageShell>
