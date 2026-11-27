@@ -87,8 +87,13 @@ describe("progress photo browsing helpers", () => {
       pose[1]?.id,
       pose[0]?.id,
     ]);
-    // Opening compare from the oldest photo pairs it with the newest.
+    // A lone `to` that is the oldest is paired with the newest.
     expect(ids(compareSelection(pose, undefined, pose[2]?.id))).toEqual([pose[2]?.id, pose[0]?.id]);
+    // The viewer passes the opened photo as `from`: it is compared with the newest…
+    expect(ids(compareSelection(pose, pose[1]?.id, undefined))).toEqual([pose[1]?.id, pose[0]?.id]);
+    expect(ids(compareSelection(pose, pose[2]?.id, undefined))).toEqual([pose[2]?.id, pose[0]?.id]);
+    // …and the newest itself with the oldest.
+    expect(ids(compareSelection(pose, pose[0]?.id, undefined))).toEqual([pose[2]?.id, pose[0]?.id]);
     expect(compareSelection(pose.slice(0, 1), undefined, undefined)).toBeNull();
   });
 

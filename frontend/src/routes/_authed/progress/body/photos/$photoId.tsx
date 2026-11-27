@@ -205,7 +205,9 @@ function PhotoView({ photo }: { photo: ReadyPhoto }) {
               <Button asChild variant="outline">
                 <Link
                   to="/progress/body/photos/compare"
-                  search={{ label: photo.label.value, to: photo.id }}
+                  // Opened from a photo: that photo against the newest (from the newest,
+                  // compareSelection falls back to the oldest against it).
+                  search={{ label: photo.label.value, from: photo.id }}
                   preload={false}
                 >
                   <Columns2 />

@@ -579,7 +579,7 @@ assert.equal(older?.dataset["replace"], "true");
 assert(exactText("Newer", "button").hasAttribute("disabled"), "the newest has no newer photo");
 assert.equal(
   exactText("Compare", "a").closest("a")?.getAttribute("href"),
-  `/progress/body/photos/compare?label=front_a&to=${id}`,
+  `/progress/body/photos/compare?label=front_a&from=${id}`,
 );
 await act(() => window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft" })));
 assert.deepEqual(navigations.pop(), {
