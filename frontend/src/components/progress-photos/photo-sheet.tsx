@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { PhotoLabel, ReadyPhoto } from "@/lib/progress-photos/api";
 import { photoDateLabel } from "@/lib/progress-photos/date";
 import { buildContactSheet, type PhotoMeasurement } from "@/lib/progress-photos/sheet";
-import { PhotoMeasurementText, photoLabelName } from "./photo-fields";
+import { PhotoMeasurementText, photoLabelName, photoMeasurementLabel } from "./photo-fields";
 import { PhotoImage } from "./photo-image";
 
 type MeasurementFor = (date: string) => PhotoMeasurement | null;
@@ -142,22 +142,33 @@ export function PhotoPoseGrid({
       aria-label={`${labelName} photos`}
       className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]"
     >
-      {photos.map((photo) => (
-        <li key={photo.id} className="min-w-0">
-          <PhotoTile
-            photo={photo}
-            name={`${labelName}, ${photoDateLabel(photo.takenOn)}`}
-            caption={<time dateTime={photo.takenOn}>{photoDateLabel(photo.takenOn)}</time>}
-            detail={
-              <PhotoMeasurementText
-                measurement={measurementFor(photo.takenOn)}
-                date={photo.takenOn}
-                className="text-xs text-muted-foreground tabular-nums"
-              />
-            }
-          />
-        </li>
-      ))}
+      {photos.map((photo) => {
+        const measurement = measurementFor(photo.takenOn);
+        // The tile's aria-label replaces its contents, so it carries the reading too.
+        const name = [
+          labelName,
+          photoDateLabel(photo.takenOn),
+          photoMeasurementLabel(measurement, photo.takenOn),
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return (
+          <li key={photo.id} className="min-w-0">
+            <PhotoTile
+              photo={photo}
+              name={name}
+              caption={<time dateTime={photo.takenOn}>{photoDateLabel(photo.takenOn)}</time>}
+              detail={
+                <PhotoMeasurementText
+                  measurement={measurement}
+                  date={photo.takenOn}
+                  className="text-xs text-muted-foreground tabular-nums"
+                />
+              }
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -185,6 +185,28 @@ export function PhotoDateInput({
   );
 }
 
+/** A reading's formatted values ("81.2 kg", "19.5 %"), skipping missing ones. */
+function measurementValues(measurement: PhotoMeasurement) {
+  return [
+    measurement.weightKg === null ? null : metricFormat.weight(measurement.weightKg),
+    measurement.bodyFatPct === null ? null : metricFormat.bodyFat(measurement.bodyFatPct),
+  ].filter((value) => value !== null);
+}
+
+/**
+ * `PhotoMeasurementText` as plain text for an accessible name ("81.2 kg, 19.5 %", plus
+ * " on Jan 10, 2025" for an earlier reading); `null` without a measurement.
+ */
+export function photoMeasurementLabel(measurement: PhotoMeasurement | null, date: string) {
+  if (!measurement) {
+    return null;
+  }
+  const values = measurementValues(measurement).join(", ");
+  return measurement.measuredOn === date
+    ? values
+    : `${values} on ${photoDateLabel(measurement.measuredOn)}`;
+}
+
 /**
  * "81.2 kg · 19.5 %" for a photo date, with the reading's own date when it was taken
  * earlier ("81.2 kg on Jan 10, 2025"). Renders nothing without a measurement.
@@ -201,13 +223,9 @@ export function PhotoMeasurementText({
   if (!measurement) {
     return null;
   }
-  const values = [
-    measurement.weightKg === null ? null : metricFormat.weight(measurement.weightKg),
-    measurement.bodyFatPct === null ? null : metricFormat.bodyFat(measurement.bodyFatPct),
-  ].filter(Boolean);
   return (
     <span className={className}>
-      {values.join(" · ")}
+      {measurementValues(measurement).join(" · ")}
       {measurement.measuredOn === date ? null : (
         <>
           {" on "}

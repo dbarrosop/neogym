@@ -9,6 +9,7 @@ import { stripJpegMetadata } from "./jpeg";
 import {
   buildContactSheet,
   compareSelection,
+  measurementChange,
   measurementNear,
   poseNeighbors,
   sortPhotoLabels,
@@ -112,6 +113,17 @@ describe("progress photo browsing helpers", () => {
     // Seven days back from Jan 8 still reaches Jan 1; from Jan 9 it doesn't.
     expect(measurementNear(rows, "2025-01-08")?.measuredOn).toBe("2025-01-01");
     expect(measurementNear(rows, "2025-01-09")).toBeNull();
+  });
+
+  test("a body change needs two different readings", () => {
+    const earlier = { measuredOn: "2025-01-09", weightKg: 81.2, bodyFatPct: 19.5 };
+    const later = { measuredOn: "2025-01-13", weightKg: 80.7, bodyFatPct: null };
+    const change = measurementChange(earlier, later);
+    expect(change?.weightKg).toBeCloseTo(-0.5);
+    expect(change?.bodyFatPct).toBeNull();
+    // Photos a few days apart that both fall back to one weigh-in measured no change.
+    expect(measurementChange(earlier, earlier)).toBeNull();
+    expect(measurementChange(null, later)).toBeNull();
   });
 });
 

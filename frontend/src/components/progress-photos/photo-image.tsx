@@ -145,15 +145,3 @@ function PhotoPlaceholder({ thumbnail, fill }: { thumbnail: boolean; fill: boole
     />
   );
 }
-
-export function PhotoPreview({ jpeg }: { jpeg: Blob }) {
-  const url = useObjectURL(jpeg);
-  return url ? (
-    <img
-      src={url}
-      alt="Preview for upload"
-      draggable={false}
-      className="max-h-64 rounded-lg object-contain"
-    />
-  ) : null;
-}

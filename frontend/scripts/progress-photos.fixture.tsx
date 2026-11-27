@@ -35,6 +35,7 @@ Object.defineProperty(navigator, "locks", {
 
 // --- Router and auth stand-ins -------------------------------------------------------
 const id = "558e5143-0f20-4014-970e-50ed9e0a32a8";
+let photoIdParam = id;
 let pathname = "/progress/body/photos";
 let outlet: ReactNode;
 type Navigation = { to?: string; params?: unknown; replace?: boolean; search?: unknown };
@@ -55,7 +56,7 @@ function subscribeSearch(listener: () => void) {
 mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({
     options,
-    useParams: () => ({ photoId: id }),
+    useParams: () => ({ photoId: photoIdParam }),
     useSearch: () => useSyncExternalStore(subscribeSearch, () => search),
     useNavigate: () => (value: Navigation) => {
       if (value.to === undefined && value.search !== undefined) {
@@ -172,6 +173,9 @@ const reservations: { label: string; date: string; id: string }[] = [];
 let uploadSignal: AbortSignal | null | undefined;
 let checkingUpload = false;
 let tookDelete = false;
+let deleteReaches = true;
+let deleteAttempts = 0;
+let readsAfterDelete = 0;
 const updates: unknown[] = [];
 const operations: string[] = [];
 const imageRequests: string[] = [];
@@ -252,7 +256,11 @@ function storageResponse(url: string, init: RequestInit): Promise<Response> {
     });
   }
   if (init.method === "DELETE") {
-    tookDelete = true;
+    deleteAttempts++;
+    // The response is lost either way; only `deleteReaches` decides the server's state.
+    if (deleteReaches) {
+      tookDelete = true;
+    }
     return Promise.reject(new Error("response lost"));
   }
   imageRequests.push(url);
@@ -266,7 +274,14 @@ function storageResponse(url: string, init: RequestInit): Promise<Response> {
 }
 function detailResponse(photoId: string) {
   if (photoId === id) {
+    if (deleteAttempts > 0) {
+      readsAfterDelete++;
+    }
     return json({ progressPhoto: tookDelete ? null : photo });
+  }
+  const known = everyReady.find((row) => row.id === photoId);
+  if (known) {
+    return json({ progressPhoto: known });
   }
   // A reservation made by the check-in form.
   const reserved = reservations.find((row) => row.id === photoId);
@@ -554,6 +569,11 @@ assert.deepEqual(search, {});
 await act(() => exactText("Front A").click());
 await settled(() => assert(mount.querySelector('ul[aria-label="Front A photos"]')));
 assert.equal(mount.querySelectorAll('ul[aria-label="Front A photos"] > li').length, 9);
+assert.equal(
+  mount.querySelector('ul[aria-label="Front A photos"] a')?.getAttribute("aria-label"),
+  "Front A, Feb 3, 2001, 80 kg, 18.0 %",
+  "the filtered tile's name carries its visible reading",
+);
 await act(() => exactText("All").click());
 
 // Hiding the tab no longer tears anything down.
@@ -587,6 +607,18 @@ assert.deepEqual(navigations.pop(), {
   params: { photoId: firstDay[2]?.id },
   replace: true,
 });
+// The router keeps the route mounted and changes the param: the neighbour's row comes
+// from the cached history, so the view (and the focused link) stays instead of a skeleton.
+assert.equal(queryClient.getQueryData(photoKeys.detail("alice", firstDay[2]?.id ?? "")), undefined);
+older?.focus();
+photoIdParam = firstDay[2]?.id ?? "";
+await renderPage(`/progress/body/photos/${photoIdParam}`, Viewer);
+assert(!mount.querySelector('[role="status"][aria-label="Loading"]'), "no page skeleton");
+assert(mount.textContent?.includes("8 of 9"));
+assert(older?.isConnected && document.activeElement === older, "focus stays on Older");
+photoIdParam = id;
+await renderPage(`/progress/body/photos/${id}`, Viewer);
+await settled(() => assert(mount.textContent?.includes("9 of 9")));
 await act(() => exactText("Edit").click());
 const editDialog = () => document.querySelector('[role="dialog"]');
 await settled(() => assert(editDialog()?.querySelector("select")));
@@ -662,6 +694,27 @@ assert.equal(
 assert(frontInput.isConnected);
 await act(() => visibility(false));
 assert.equal(exactText("Upload 2 photos").hasAttribute("disabled"), false);
+function fileDrag(type: "dragover" | "drop", target: Element | null | undefined) {
+  assert(target);
+  const event = new window.Event(type, { bubbles: true, cancelable: true });
+  const dataTransfer = { types: ["Files"], dropEffect: "copy", files: { item: () => null } };
+  Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+  target.dispatchEvent(event);
+  return { prevented: event.defaultPrevented, dropEffect: dataTransfer.dropEffect };
+}
+const slotFor = (labelName: string) =>
+  mount.querySelector(`input[aria-label="${labelName} photo"]`)?.closest("label");
+const helpText = [...mount.querySelectorAll("p")].find((node) =>
+  node.textContent?.startsWith("Add a photo for any"),
+);
+await act(() => {
+  assert.deepEqual(fileDrag("dragover", slotFor("Back B")), {
+    prevented: true,
+    dropEffect: "copy",
+  });
+  assert.deepEqual(fileDrag("dragover", helpText), { prevented: true, dropEffect: "none" });
+  assert.equal(fileDrag("drop", helpText).prevented, true, "a stray drop never opens the file");
+});
 const lost = Promise.withResolvers<Response>();
 uploadHeld = lost;
 checkingUpload = true;
@@ -673,6 +726,13 @@ assert.deepEqual(lastUpload, {
   type: "image/jpeg",
 });
 assert(mount.querySelector<HTMLInputElement>("input[type=date]")?.disabled, "date locks on upload");
+await act(() => {
+  // A slot that is uploading refuses another file rather than letting it open in the tab.
+  assert.deepEqual(fileDrag("dragover", slotFor("Front A")), {
+    prevented: true,
+    dropEffect: "none",
+  });
+});
 await act(() => lost.resolve(new Response(null, { status: 500 })));
 await settled(() => assert(!exactText("Try again").hasAttribute("disabled")));
 assert(mount.textContent?.includes("didn't finish uploading"));
@@ -718,18 +778,44 @@ assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true
 
 // --- Delete from the viewer: a lost response is reconciled by reading the photo -----
 await renderPage(`/progress/body/photos/${id}`, Viewer);
-await settled(() => assert(mount.querySelector("h1")));
-await act(() => exactText("Delete photo").click());
-const dialog = document.querySelector('[role="alertdialog"]');
-assert(dialog);
-assert.equal(
-  document.getElementById(dialog.getAttribute("aria-labelledby") ?? "")?.textContent,
-  "Delete this progress photo?",
-);
-assert(dialog.textContent?.includes("This can't be undone."));
-await act(() => exactText("Delete photo", "button", dialog).click());
+await settled(() => assert(mount.textContent?.includes("9 of 9")));
+async function confirmDelete() {
+  await act(() => exactText("Delete photo").click());
+  const dialog = document.querySelector('[role="alertdialog"]');
+  assert(dialog);
+  assert.equal(
+    document.getElementById(dialog.getAttribute("aria-labelledby") ?? "")?.textContent,
+    "Delete this progress photo?",
+  );
+  assert(dialog.textContent?.includes("This can't be undone."));
+  await act(() => exactText("Delete photo", "button", dialog).click());
+}
+const deleteError = () =>
+  [...mount.querySelectorAll('[role="alert"]')].find((node) =>
+    node.textContent?.includes("Couldn't delete the photo"),
+  );
+// The DELETE response is lost and never reached Storage: the read finds the photo.
+deleteReaches = false;
+await confirmDelete();
+await settled(() => assert(deleteError()));
+assert.equal(deleteAttempts, 1);
+assert(readsAfterDelete > 0, "an uncertain delete is checked by reading the photo");
+assert.equal(navigations.length, 0, "a photo that still exists is not reported deleted");
+assert(queryClient.getQueryData(photoKeys.detail("alice", id)), "and stays cached");
+// The error belongs to that photo: stepping to another one doesn't carry it over.
+photoIdParam = firstDay[2]?.id ?? "";
+await renderPage(`/progress/body/photos/${photoIdParam}`, Viewer);
+assert(mount.textContent?.includes("8 of 9"));
+assert(!deleteError(), "no other photo shows the failed delete");
+photoIdParam = id;
+await renderPage(`/progress/body/photos/${id}`, Viewer);
+// The DELETE reaches Storage but its response is lost: the read confirms it's gone.
+deleteReaches = true;
+const readsBefore = readsAfterDelete;
+await confirmDelete();
 await settled(() => assert.equal(navigations.length, 1));
 assert(tookDelete);
+assert(readsAfterDelete > readsBefore, "the deletion was confirmed by a read");
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
 await renderPage("/progress/body/photos", Gallery);
 await settled(() => assert(sheet()));

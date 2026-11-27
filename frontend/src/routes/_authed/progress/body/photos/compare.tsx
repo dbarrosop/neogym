@@ -21,7 +21,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatSignedDelta } from "@/lib/metric-format";
 import type { ReadyPhoto } from "@/lib/progress-photos/api";
 import { photoDateLabel } from "@/lib/progress-photos/date";
-import { compareSelection, daysBetween, type PhotoMeasurement } from "@/lib/progress-photos/sheet";
+import {
+  compareSelection,
+  daysBetween,
+  measurementChange,
+  type PhotoMeasurement,
+} from "@/lib/progress-photos/sheet";
 
 const searchSchema = z.object({
   label: z.string().max(64).optional(),
@@ -81,13 +86,10 @@ function PhotoChoice({
   );
 }
 
-function change(before: number | null | undefined, after: number | null | undefined) {
-  return before === null || before === undefined || after === null || after === undefined
-    ? null
-    : after - before;
-}
-
-/** Days between the photos and, when both dates have readings, the body changes. */
+/**
+ * Days between the photos and, when they resolve to two different readings, the body
+ * changes (one reading shared by both photos measures no change).
+ */
 function ChangeSummary({
   before,
   after,
@@ -98,8 +100,9 @@ function ChangeSummary({
   measurements: { before: PhotoMeasurement | null; after: PhotoMeasurement | null };
 }) {
   const days = daysBetween(before.takenOn, after.takenOn);
-  const weight = change(measurements.before?.weightKg, measurements.after?.weightKg);
-  const bodyFat = change(measurements.before?.bodyFatPct, measurements.after?.bodyFatPct);
+  const delta = measurementChange(measurements.before, measurements.after);
+  const weight = delta?.weightKg ?? null;
+  const bodyFat = delta?.bodyFatPct ?? null;
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(min(10rem,100%),1fr))] gap-3">
       <StatTile

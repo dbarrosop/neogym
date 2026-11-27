@@ -85,7 +85,6 @@ export const photoKeys = {
   owner: (owner: string) => ["progress_photos", owner] as const,
   labels: (owner: string) => ["progress_photos", owner, "labels"] as const,
   summary: (owner: string) => ["progress_photos", owner, "summary"] as const,
-  lists: (owner: string) => ["progress_photos", owner, "list"] as const,
   list: (owner: string, label: string) => ["progress_photos", owner, "list", label] as const,
   /** One label's whole history (older/newer navigation and compare). */
   pose: (owner: string, label: string) => ["progress_photos", owner, "pose", label] as const,

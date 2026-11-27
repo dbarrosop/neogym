@@ -142,3 +142,23 @@ export function measurementNear(
   }
   return best;
 }
+
+/**
+ * The body change between two photos' readings. `null` when either is missing or both
+ * photos fall back to the same reading (no change was measured between them); a value
+ * is `null` when either reading lacks it.
+ */
+export function measurementChange(
+  before: PhotoMeasurement | null,
+  after: PhotoMeasurement | null,
+): { weightKg: number | null; bodyFatPct: number | null } | null {
+  if (!before || !after || before.measuredOn === after.measuredOn) {
+    return null;
+  }
+  const diff = (from: number | null, to: number | null) =>
+    from === null || to === null ? null : to - from;
+  return {
+    weightKg: diff(before.weightKg, after.weightKg),
+    bodyFatPct: diff(before.bodyFatPct, after.bodyFatPct),
+  };
+}

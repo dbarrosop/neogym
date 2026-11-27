@@ -56,6 +56,37 @@ function useFormSignal() {
   return () => controller.current?.signal ?? AbortSignal.abort();
 }
 
+/**
+ * While the form is mounted, a file dragged anywhere a slot hasn't accepted it (a busy
+ * slot, the gaps, the header) is refused instead of opening in the tab, which would
+ * unload the app with the prepared photos and their retry state. Slots handle their own
+ * drops first: React's root listener runs before this window listener.
+ */
+function useRefuseStrayFileDrops() {
+  useEffect(() => {
+    const hasFiles = (event: DragEvent) => Boolean(event.dataTransfer?.types.includes("Files"));
+    const onDragOver = (event: DragEvent) => {
+      if (hasFiles(event) && !event.defaultPrevented) {
+        event.preventDefault();
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = "none";
+        }
+      }
+    };
+    const onDrop = (event: DragEvent) => {
+      if (hasFiles(event)) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+}
+
 type Slots = Record<string, SlotState>;
 
 /** Labels whose photo is ready to upload, or whose upload can be retried, in catalog order. */
@@ -86,6 +117,7 @@ function CheckInForm() {
   const helpId = useId();
   const today = useLocalToday();
   const formSignal = useFormSignal();
+  useRefuseStrayFileDrops();
   const [date, setDate] = useState(() =>
     search.date && validPhotoDate(search.date, today) ? search.date : today,
   );

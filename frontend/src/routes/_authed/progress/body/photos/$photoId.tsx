@@ -141,7 +141,8 @@ function PhotoView({ photo }: { photo: ReadyPhoto }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string>();
+  // The view stays mounted while stepping between photos, so an error belongs to one photo.
+  const [error, setError] = useState<{ id: string; message: string }>();
   const { place, swipe } = usePoseNavigation(photo, editing || confirming);
   const measurement = usePhotoMeasurements(0)(photo.takenOn);
   const name = photoLabelName(photo.label);
@@ -174,7 +175,10 @@ function PhotoView({ photo }: { photo: ReadyPhoto }) {
       // No state changes after this: the view is leaving.
       await navigate({ to: "/progress/body/photos", replace: true });
     } catch {
-      setError("Couldn't delete the photo. Check your connection and try again.");
+      setError({
+        id: photo.id,
+        message: "Couldn't delete the photo. Check your connection and try again.",
+      });
       setConfirming(false);
       setDeleting(false);
     }
@@ -233,9 +237,9 @@ function PhotoView({ photo }: { photo: ReadyPhoto }) {
           <StepLink photo={place.newer} direction="Newer" />
         </nav>
       ) : null}
-      {error ? (
+      {error && error.id === photo.id ? (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {error.message}
         </p>
       ) : null}
       <DangerZone
