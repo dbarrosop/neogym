@@ -44,6 +44,24 @@ final class DemoProgressPhotoTests: XCTestCase {
         XCTAssertNil(unknown)
     }
 
+    func testPhotoDatesHaveSameDayBodyReadingsInTheDemoCalendar() async throws {
+        for zone in ["UTC", "Europe/Madrid", "Asia/Tokyo", "Australia/Sydney", "America/Los_Angeles"] {
+            var calendar = ProgressPhotoDate.pickerCalendar
+            calendar.timeZone = try XCTUnwrap(TimeZone(identifier: zone))
+            for day in ["2025-04-06", "2025-04-07", "2025-04-08"] {
+                let now = try XCTUnwrap(DateOnly.parse(day, calendar: calendar))
+                let store = try DemoStore(now: now, calendar: calendar)
+                let repository = try XCTUnwrap(AppRepositories.demo(store: store).progressPhotos)
+                let page = try await repository.page(angle: nil, after: nil)
+                let dates = Set(page.photos.map(\.takenOn))
+                XCTAssertEqual(dates.count, 3, "\(zone), \(day)")
+                XCTAssertEqual(dates.max(), day)
+                let measurements = try await repository.measurements(on: Array(dates))
+                XCTAssertEqual(Set(measurements.map(\.measuredOn)), dates, "\(zone), \(day)")
+            }
+        }
+    }
+
     @MainActor
     func testScopedDemoRejectsEveryWriteAndHonorsStoreRetirement() async throws {
         let store = try DemoStore()

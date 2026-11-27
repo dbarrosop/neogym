@@ -117,9 +117,15 @@ enum DemoSeed {
         state.insert(.journalLabels, ["name": .string("training")], id: "demo-journal-label")
     }
 
+    static func dayOrdinal(_ date: Date, calendar: Calendar) -> Int {
+        calendar.ordinality(of: .day, in: .era, for: calendar.startOfDay(for: date)) ?? 0
+    }
+
+    static func isScheduledBodyDay(_ ordinal: Int) -> Bool { ordinal % 3 == 0 }
+
     private static func seedDay(_ state: inout DemoState, date: Date, today: String, now: Date, calendar: Calendar) {
         let day = DateOnly.formatLocalISO(date, calendar: calendar)
-        let ordinal = calendar.ordinality(of: .day, in: .era, for: date) ?? 0
+        let ordinal = dayOrdinal(date, calendar: calendar)
         let isToday = day == today
         let currentStart = max(calendar.startOfDay(for: now), now.addingTimeInterval(-2700))
         let timestamp = ISO8601DateFormatter().string(from: isToday ? currentStart : calendar.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date)
@@ -167,7 +173,7 @@ enum DemoSeed {
                 "notes": .string("Fictional demo data"),
                 "updatedAt": .string(timestamp)], id: "demo-energy-\(day)")
         }
-        if ordinal % 3 == 0 || isToday {
+        if isScheduledBodyDay(ordinal) || isToday {
             if !state.rows(.body).contains(where: { $0.text("measuredOn") == day }) {
                 state.insert(.body, ["measuredOn": .string(day),
                     "weightKg": .number(78 + Double(ordinal % 13) / 10),

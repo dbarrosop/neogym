@@ -61,7 +61,7 @@ struct DemoProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
 
     func imageBytes(_ id: String, thumbnail: Bool) async throws -> Data {
         let day = try await preparedDay()
-        guard let illustration = Self.samples(through: day).first(where: { $0.photo.id == id })?.illustration,
+        guard let illustration = Self.samples(through: day, calendar: store.calendar).first(where: { $0.photo.id == id })?.illustration,
               let file = Bundle.module.url(forResource: "demo-progress-photo-\(illustration.rawValue)", withExtension: "png") else {
             throw ProgressPhotoError.unavailable
         }
@@ -81,20 +81,21 @@ struct DemoProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
     }
 
     private func rows() async throws -> [ProgressPhoto] {
-        Self.samples(through: try await preparedDay()).map(\.photo)
+        Self.samples(through: try await preparedDay(), calendar: store.calendar).map(\.photo)
     }
 
-    private static func samples(through day: String) -> [Sample] {
-        let calendar = ProgressPhotoDate.pickerCalendar
-        guard let end = DateOnly.parse(day, calendar: calendar) else { return [] }
+    private static func samples(through day: String, calendar: Calendar) -> [Sample] {
+        guard let end = IntakeGrouping.localDateToDate(day, calendar: calendar) else { return [] }
         let checkIns: [(offset: Int, front: Illustration, back: Illustration?)] = [
             (0, .blue, .amber), (14, .amber, .green), (35, .green, nil)
         ]
         return checkIns.flatMap { checkIn -> [Sample] in
             guard let approximate = calendar.date(byAdding: .day, value: -checkIn.offset, to: end) else { return [] }
-            // DemoSeed records a Body measurement every third calendar day, plus today.
-            let adjustment = checkIn.offset == 0 ? 0 : (calendar.ordinality(of: .day, in: .era, for: approximate) ?? 0) % 3
-            guard let date = calendar.date(byAdding: .day, value: -adjustment, to: approximate) else { return [] }
+            // Match the Body seed's cadence in the same local calendar. Today's check-in always has a reading.
+            let date = checkIn.offset == 0 ? end : (0...2).lazy.compactMap {
+                calendar.date(byAdding: .day, value: -$0, to: approximate)
+            }.first { DemoSeed.isScheduledBodyDay(DemoSeed.dayOrdinal($0, calendar: calendar)) }
+            guard let date else { return [] }
             let takenOn = DateOnly.formatLocalISO(date, calendar: calendar)
             var samples = [sample(takenOn: takenOn, number: 2, label: front, art: checkIn.front)]
             if let art = checkIn.back { samples.append(sample(takenOn: takenOn, number: 1, label: back, art: art)) }
