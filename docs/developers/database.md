@@ -187,6 +187,34 @@ erDiagram
 
 `workout_labels` uses the same "public-or-user-owned" visibility pattern as `exercises` and `workouts`: `is_public = true ⇔ user_id IS NULL`, enforced by a CHECK constraint. `journal_labels` is strictly private per-user — no `is_public` column, `user_id NOT NULL` — see [`permissions.md`](permissions.md) pattern A.
 
+## Progress photos
+
+```mermaid
+erDiagram
+    STORAGE_FILES["storage.files"]
+    AUTH_USERS["auth.users"]
+
+    PROGRESS_PHOTO_LABELS {
+        text value PK
+        text comment
+    }
+    PROGRESS_PHOTOS {
+        uuid id PK
+        uuid file_id FK, UK
+        uuid user_id FK
+        text label_value FK
+        date taken_on
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    STORAGE_FILES ||--o| PROGRESS_PHOTOS : "backs (CASCADE delete)"
+    AUTH_USERS |o--o{ PROGRESS_PHOTOS : "owns (SET NULL on delete)"
+    PROGRESS_PHOTO_LABELS ||--o{ PROGRESS_PHOTOS : "labels (RESTRICT delete)"
+```
+
+`progress_photos` is the upload reservation: it assigns the UUID and stores the uploader, calendar date and admin label before an upload starts. `progress_photo_labels` is a Hasura enum table with a text key and optional comment; `progress_photos.label_value` references it and appears in GraphQL as `labelValue`, with `label` as the relationship. `file_id` starts null and is a unique cascading FK to `storage.files.id`; when set, it must equal the reservation UUID. Storage initialization atomically sets `file_id` on the current matching reservation. GraphQL follows `file` without a second write from the client. Date and angle are not a uniqueness key. Account deletion nulls `user_id`, immediately hiding the reservation row. Storage file access follows the uploader ID instead, so an already-issued token can still access the file until token expiry or cleanup. Scheduled PostgreSQL jobs remove expired pending uploads and rows left by deleted uploaders. Storage's own queue handles byte removal after SQL deletion. See the [progress-photo API](progress-photos.md).
+
 ## Nutrition
 
 Nutrition is a separate private/user-catalog domain for calorie intake. See [`nutrition.md`](nutrition.md) for invariants and operational caveats; this section is the schema map.
@@ -264,6 +292,9 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 |---|---|---|
 | `health_workouts.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Imported private workout snapshots are removed with the account. |
 | `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
+| `progress_photos.user_id` → `auth.users.id` | `ON DELETE SET NULL` | Account deletion hides the photo immediately; a `pg_cron` job removes the remaining rows. |
+| `progress_photos.file_id` → `storage.files.id` | `ON DELETE CASCADE` | Deleting the Storage file row removes its reservation; it does not prove the bytes are gone. |
+| `progress_photos.label_value` → `progress_photo_labels.value` | `ON DELETE RESTRICT` | A label cannot be deleted while a photo references it. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |
@@ -279,7 +310,7 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 
 ## Triggers
 
-There are a handful of meaningful triggers; the rest are stock `updated_at` setters on every `BEFORE UPDATE`.
+The table summarizes domain-specific triggers; standard `updated_at` setters are omitted.
 
 | Table | Trigger | Fires on | What it does |
 |---|---|---|---|
@@ -291,5 +322,7 @@ There are a handful of meaningful triggers; the rest are stock `updated_at` sett
 | `nutrition_log_entries` | `populate_public_nutrition_log_entry_food_snapshot` | `BEFORE INSERT` | Branches on `source`. Food-backed rows require a non-null `food_id` and copy food name plus per-100g nutrients into trusted `snapshot_*` columns, overwriting client input. Ad-hoc rows preserve user-supplied standalone snapshots and are validated by table checks. |
 | `nutrition_log_entries` | `guard_public_nutrition_log_entry_snapshot_immutability` | `BEFORE UPDATE OF source, snapshot_*` | Rejects `source` changes and protects food-backed snapshot/name columns while allowing ad-hoc snapshot edits and ordinary grams/position/slot_time corrections. |
 | `nutrition_log_entries` | `check_public_nutrition_log_entry_plan_food_provenance` | `BEFORE INSERT OR UPDATE OF nutrition_plan_food_id, nutrition_log_meal_id, food_id` | Allows `nutrition_plan_food_id` only on standalone log entries and rejects rows whose `food_id` differs from the referenced direct plan-food slot. |
+| `storage.files` | `attach_progress_photo_upload` | `AFTER INSERT` (progress bucket) | Rejects IDs queued for deletion, then claims a current, unused reservation with the same ID and matching uploader before any bytes are accepted. |
+| `storage.files` | `keep_progress_photo_file_identity` | `BEFORE UPDATE OF id, bucket_id, uploaded_by_user_id, metadata` | Prevents reassigning progress file identity, moving a file into/out of the bucket, or persisting custom Storage metadata. |
 
 The `pg_jsonschema` extension (`CREATE EXTENSION` in migration `1790000400000`) provides the three functions used here: `jsonschema_is_valid`, `jsonb_matches_schema`, `jsonschema_validation_errors`.

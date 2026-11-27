@@ -341,14 +341,20 @@ Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, 
 
 ### `storage.files`
 
-Nhost stores uploaded files in S3-compatible buckets (currently just `exercise_images`). This is the only table where the `public` role appears — so an unauthenticated visitor can `GET` an exercise image by URL without signing in. Writes are admin-only (uploads happen through the Nhost Storage API, not the GraphQL API).
+Nhost stores uploaded files in S3-compatible storage. This is the only table where the `public` role appears: an unauthenticated visitor can `GET` an `exercise_images` image by URL without signing in. The separate `progress_photos` bucket is private (see [progress-photo API](progress-photos.md)).
 
 | Role | Action | Columns | Filter | Enforces |
 |---|---|---|---|---|
 | `public` | `select` | `id`, `name`, `size`, `bucket_id`, `etag`, `created_at`, `updated_at`, `is_uploaded`, `mime_type`, `uploaded_by_user_id`, `metadata` | filter: `bucket_id eq exercise_images` | Public catalog images are visible to unauthenticated visitors (so the marketing/landing flow works, and the app doesn't have to forge auth headers for image `<img src>`). Files in any other bucket are hidden from public. |
-| `user` | `select` | Same as public | filter: `bucket_id eq exercise_images` | Authenticated users can also read exercise images. (There are no other buckets in use today; if a private-uploads bucket is added, a separate user-scoped row-filter goes here.) |
+| `user` | `select` | Same as public | `exercise_images`, or `progress_photos` with `uploaded_by_user_id eq self` | The same Hasura file rule protects GraphQL rows and Storage REST reads. |
+| `user` | `insert` | `id`, `bucket_id`, `name`, `size`, `mime_type`; preset `uploaded_by_user_id` | Progress bucket only; caller's reservation; name `progress-photo.jpg` and MIME `image/jpeg` | A generic GraphQL file insert initializes metadata only. The bucket enforces its size limits on Storage REST uploads, not on `size` supplied to GraphQL. |
+| `user` | `delete` | — | Progress bucket only; `uploaded_by_user_id eq self` | REST removes the object; a GraphQL metadata delete relies on Storage's cleanup queue. Both cascade the photo row. |
 
-No insert / update / delete permissions for the user role: file lifecycle goes through Nhost Storage's REST endpoints, which apply their own bucket-scoped rules. The `auth.*` and `storage.buckets` / `storage.virus` tables have no user-role permissions at all — they're managed by Nhost.
+No user update or replacement. The file grants apply to GraphQL and Storage REST; they confer no access to other buckets. The progress-file read and delete filters use the stored uploader ID, not the admin-only `uploader` relationship, so [account deletion does not revoke file access immediately](progress-photos.md#private-reads-and-deletion). The `auth.*`, `storage.buckets`, `storage.virus`, `storage.files_to_delete` remain admin-only.
+
+### Progress photos
+
+`progress_photo_labels` is an admin-managed Hasura enum table with user select only (`value`, `comment`). `progress_photos` has owner-only select, owner-preset insert of `label_value` and `taken_on`, a server-assigned UUID, and owner-only updates of `label_value` and `taken_on`. GraphQL exposes `labelValue` as the enum field and `label` as the catalog relationship. The file insert rule follows the reservation by UUID; the database requires the reservation to be unexpired and unused and attaches the file atomically. The `file` relationship is null until Storage initializes the upload; galleries filter on `file.isUploaded`. There is no direct user photo-row delete and no public access to either table.
 
 ## What `user` role is *not* allowed to touch
 
@@ -363,7 +369,7 @@ A few intentional omissions worth calling out — these are the columns and tabl
 - **`workouts.is_public` and `labels.is_public`** — not in the user-role insert/update allowlist for the same reason: only admins can promote private rows to the public catalog.
 - **`meal_ingredients.food_id`, `nutrition_plan_meals.meal_id`, and `nutrition_plan_foods.food_id` after insert** — not in user-role update allowlists. Template source changes are delete+insert so reparenting cannot silently rewrite historical or planned semantics.
 - **`nutrition_log_entries.source`, `nutrition_log_entries.food_id`, `nutrition_log_entries.nutrition_plan_food_id`, `nutrition_log_entries.nutrition_day_id`, and `nutrition_log_entries.nutrition_log_meal_id` after insert** — not in the user-role update allowlist. Source and provenance are insert-time facts. Snapshot columns are update-allowlisted only because ad-hoc rows need editable snapshots; the database trigger still rejects snapshot/name changes for food-backed rows.
-- **All `auth.*` and `storage.buckets` / `storage.virus` tables** — admin-only. Managed by Nhost; do not edit those YAMLs unless you know what you're touching.
+- **All `auth.*` and `storage.buckets` / `storage.virus` / `storage.files_to_delete` tables** — no user-role access. See the [progress-photo permission boundary](progress-photos.md) for owner-scoped reads and why the queue does not grant access to file bytes.
 
 ## Where to verify these claims
 

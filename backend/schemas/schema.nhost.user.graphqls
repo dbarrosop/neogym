@@ -600,6 +600,15 @@ enum exercises_update_column {
   image2FileId
 }
 """
+unique or primary key constraints on table "storage.files"
+"""
+enum files_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  files_pkey
+}
+"""
 select columns of table "storage.files"
 """
 enum files_select_column {
@@ -647,6 +656,15 @@ enum files_select_column {
   column name
   """
   metadata
+}
+"""
+placeholder for update columns of table "storage.files" (current role has no relevant permissions)
+"""
+enum files_update_column {
+  """
+  placeholder (do not use)
+  """
+  _PLACEHOLDER
 }
 """
 unique or primary key constraints on table "foods"
@@ -1646,6 +1664,84 @@ enum order_by {
   in descending order, nulls last
   """
   desc_nulls_last
+}
+enum progressPhotoLabel_enum {
+  """
+  Back
+  """
+  back
+  """
+  Front
+  """
+  front
+}
+"""
+select columns of table "progress_photo_labels"
+"""
+enum progressPhotoLabel_select_column {
+  """
+  column name
+  """
+  value
+  """
+  column name
+  """
+  comment
+}
+"""
+unique or primary key constraints on table "progress_photos"
+"""
+enum progressPhoto_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  progress_photos_pkey
+  """
+  unique or primary key constraint on columns "file_id"
+  """
+  progress_photos_file_id_key
+}
+"""
+select columns of table "progress_photos"
+"""
+enum progressPhoto_select_column {
+  """
+  column name
+  """
+  id
+  """
+  column name
+  """
+  userId
+  """
+  column name
+  """
+  labelValue
+  """
+  column name
+  """
+  takenOn
+  """
+  column name
+  """
+  createdAt
+  """
+  column name
+  """
+  updatedAt
+}
+"""
+update columns of table "progress_photos"
+"""
+enum progressPhoto_update_column {
+  """
+  column name
+  """
+  labelValue
+  """
+  column name
+  """
+  takenOn
 }
 """
 unique or primary key constraints on table "workout_exercises"
@@ -3367,6 +3463,10 @@ type files {
     path: String
   ): jsonb
   """
+  An object relationship
+  """
+  progressPhoto: progressPhoto
+  """
   An array relationship
   """
   exercisesAsImage1(
@@ -3482,6 +3582,19 @@ type files {
     """
     where: exercises_bool_exp
   ): exercises_aggregate!
+}
+"""
+response of any mutation on the table "storage.files"
+"""
+type files_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [files!]!
 }
 """
 Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent.
@@ -6311,6 +6424,66 @@ type mutation_root {
     updates: [nutritionPlans_updates!]!
   ): [nutritionPlans_mutation_response]
   """
+  insert a single row into the table: "progress_photos"
+  """
+  insertProgressPhoto(
+    """
+    the row to be inserted
+    """
+    object: progressPhoto_insert_input!
+
+    """
+    upsert condition
+    """
+    on_conflict: progressPhoto_on_conflict
+  ): progressPhoto
+  """
+  insert data into the table: "progress_photos"
+  """
+  insertProgressPhotos(
+    """
+    the rows to be inserted
+    """
+    objects: [progressPhoto_insert_input!]!
+
+    """
+    upsert condition
+    """
+    on_conflict: progressPhoto_on_conflict
+  ): progressPhoto_mutation_response
+  """
+  update single row of the table: "progress_photos"
+  """
+  updateProgressPhoto(
+    """
+    sets the columns of the filtered rows to the given values
+    """
+    _set: progressPhoto_set_input
+  pk_columns: progressPhoto_pk_columns_input!): progressPhoto
+  """
+  update data of the table: "progress_photos"
+  """
+  updateProgressPhotos(
+    """
+    sets the columns of the filtered rows to the given values
+    """
+    _set: progressPhoto_set_input
+
+    """
+    filter the rows which have to be updated
+    """
+    where: progressPhoto_bool_exp!
+  ): progressPhoto_mutation_response
+  """
+  update multiples rows of table: "progress_photos"
+  """
+  update_progressPhoto_many(
+    """
+    updates to execute, in order
+    """
+    updates: [progressPhoto_updates!]!
+  ): [progressPhoto_mutation_response]
+  """
   delete single row from the table: "workout_exercises"
   """
   deleteWorkoutExercise(id: uuid!): workoutExercises
@@ -6879,6 +7052,47 @@ type mutation_root {
     """
     updates: [workouts_updates!]!
   ): [workouts_mutation_response]
+  """
+  delete single row from the table: "storage.files"
+  """
+  deleteFile(id: uuid!): files
+  """
+  delete data from the table: "storage.files"
+  """
+  deleteFiles(
+    """
+    filter the rows which have to be deleted
+    """
+    where: files_bool_exp!
+  ): files_mutation_response
+  """
+  insert a single row into the table: "storage.files"
+  """
+  insertFile(
+    """
+    the row to be inserted
+    """
+    object: files_insert_input!
+
+    """
+    upsert condition
+    """
+    on_conflict: files_on_conflict
+  ): files
+  """
+  insert data into the table: "storage.files"
+  """
+  insertFiles(
+    """
+    the rows to be inserted
+    """
+    objects: [files_insert_input!]!
+
+    """
+    upsert condition
+    """
+    on_conflict: files_on_conflict
+  ): files_mutation_response
 }
 """
 columns and relationships of "nutrition_days"
@@ -8150,6 +8364,45 @@ type nutritionPlans_mutation_response {
   data from the rows affected by the mutation
   """
   returning: [nutritionPlans!]!
+}
+"""
+columns and relationships of "progress_photos"
+"""
+type progressPhoto {
+  id: uuid!
+  userId: uuid
+  labelValue: progressPhotoLabel_enum!
+  takenOn: date!
+  createdAt: timestamptz!
+  updatedAt: timestamptz!
+  """
+  An object relationship
+  """
+  file: files
+  """
+  An object relationship
+  """
+  label: progressPhotoLabel!
+}
+"""
+columns and relationships of "progress_photo_labels"
+"""
+type progressPhotoLabel {
+  value: String!
+  comment: String
+}
+"""
+response of any mutation on the table "progress_photos"
+"""
+type progressPhoto_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [progressPhoto!]!
 }
 type query_root {
   """
@@ -9793,6 +10046,72 @@ type query_root {
     """
     where: nutritionPlans_bool_exp
   ): nutritionPlans_aggregate!
+  """
+  fetch data from the table: "progress_photo_labels"
+  """
+  progressPhotoLabels(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhotoLabel_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhotoLabel_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhotoLabel_bool_exp
+  ): [progressPhotoLabel!]!
+  """
+  fetch data from the table: "progress_photo_labels" using primary key columns
+  """
+  progressPhotoLabel(value: String!): progressPhotoLabel
+  """
+  fetch data from the table: "progress_photos"
+  """
+  progressPhotos(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhoto_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhoto_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): [progressPhoto!]!
+  """
+  fetch data from the table: "progress_photos" using primary key columns
+  """
+  progressPhoto(id: uuid!): progressPhoto
   """
   fetch data from the table: "workout_exercises"
   """
@@ -12600,6 +12919,110 @@ type subscription_root {
     """
     where: nutritionPlans_bool_exp
   ): [nutritionPlans!]!
+  """
+  fetch data from the table: "progress_photo_labels"
+  """
+  progressPhotoLabels(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhotoLabel_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhotoLabel_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhotoLabel_bool_exp
+  ): [progressPhotoLabel!]!
+  """
+  fetch data from the table: "progress_photo_labels" using primary key columns
+  """
+  progressPhotoLabel(value: String!): progressPhotoLabel
+  """
+  fetch data from the table in a streaming manner: "progress_photo_labels"
+  """
+  progressPhotoLabel_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [progressPhotoLabel_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: progressPhotoLabel_bool_exp
+  ): [progressPhotoLabel!]!
+  """
+  fetch data from the table: "progress_photos"
+  """
+  progressPhotos(
+    """
+    distinct select on columns
+    """
+    distinct_on: [progressPhoto_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [progressPhoto_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): [progressPhoto!]!
+  """
+  fetch data from the table: "progress_photos" using primary key columns
+  """
+  progressPhoto(id: uuid!): progressPhoto
+  """
+  fetch data from the table in a streaming manner: "progress_photos"
+  """
+  progressPhoto_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [progressPhoto_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: progressPhoto_bool_exp
+  ): [progressPhoto!]!
   """
   fetch data from the table: "workout_exercises"
   """
@@ -15735,6 +16158,16 @@ input exercises_aggregate_order_by {
   min: exercises_min_order_by
 }
 """
+input type for inserting array relation for remote table "exercises"
+"""
+input exercises_arr_rel_insert_input {
+  data: [exercises_insert_input!]!
+  """
+  upsert condition
+  """
+  on_conflict: exercises_on_conflict
+}
+"""
 Boolean expression to filter rows from the table "exercises". All fields are combined with a logical 'AND'.
 """
 input exercises_bool_exp {
@@ -15783,6 +16216,8 @@ input exercises_insert_input {
   image1FileId: uuid
   image2FileId: uuid
   cardio: exercisesCardio_obj_rel_insert_input
+  image1: files_obj_rel_insert_input
+  image2: files_obj_rel_insert_input
   strength: exercisesStrength_obj_rel_insert_input
   secondaryMuscleGroups: exerciseSecondaryMuscleGroups_arr_rel_insert_input
   workoutExercises: workoutExercises_arr_rel_insert_input
@@ -15955,10 +16390,42 @@ input files_bool_exp {
   isUploaded: Boolean_comparison_exp
   uploadedByUserId: uuid_comparison_exp
   metadata: jsonb_comparison_exp
+  progressPhoto: progressPhoto_bool_exp
   exercisesAsImage1: exercises_bool_exp
   exercisesAsImage1_aggregate: exercises_aggregate_bool_exp
   exercisesAsImage2: exercises_bool_exp
   exercisesAsImage2_aggregate: exercises_aggregate_bool_exp
+}
+"""
+input type for inserting data into table "storage.files"
+"""
+input files_insert_input {
+  id: uuid
+  bucketId: String
+  name: String
+  size: Int
+  mimeType: String
+  progressPhoto: progressPhoto_obj_rel_insert_input
+  exercisesAsImage1: exercises_arr_rel_insert_input
+  exercisesAsImage2: exercises_arr_rel_insert_input
+}
+"""
+input type for inserting object relation for remote table "storage.files"
+"""
+input files_obj_rel_insert_input {
+  data: files_insert_input!
+  """
+  upsert condition
+  """
+  on_conflict: files_on_conflict
+}
+"""
+on_conflict condition type for table "storage.files"
+"""
+input files_on_conflict {
+  constraint: files_constraint!
+  update_columns: [files_update_column!]! = []
+  where: files_bool_exp
 }
 """
 Ordering options when selecting data from "storage.files".
@@ -15975,6 +16442,7 @@ input files_order_by {
   isUploaded: order_by
   uploadedByUserId: order_by
   metadata: order_by
+  progressPhoto: progressPhoto_order_by
   exercisesAsImage1_aggregate: exercises_aggregate_order_by
   exercisesAsImage2_aggregate: exercises_aggregate_order_by
 }
@@ -18649,6 +19117,155 @@ input nutritionPlans_updates {
   filter the rows which have to be updated
   """
   where: nutritionPlans_bool_exp!
+}
+"""
+Boolean expression to filter rows from the table "progress_photo_labels". All fields are combined with a logical 'AND'.
+"""
+input progressPhotoLabel_bool_exp {
+  _and: [progressPhotoLabel_bool_exp!]
+  _not: progressPhotoLabel_bool_exp
+  _or: [progressPhotoLabel_bool_exp!]
+  value: String_comparison_exp
+  comment: String_comparison_exp
+}
+"""
+Boolean expression to compare columns of type "progressPhotoLabel_enum". All fields are combined with logical 'AND'.
+"""
+input progressPhotoLabel_enum_comparison_exp {
+  _eq: progressPhotoLabel_enum
+  _in: [progressPhotoLabel_enum!]
+  _is_null: Boolean
+  _neq: progressPhotoLabel_enum
+  _nin: [progressPhotoLabel_enum!]
+}
+"""
+Ordering options when selecting data from "progress_photo_labels".
+"""
+input progressPhotoLabel_order_by {
+  value: order_by
+  comment: order_by
+}
+"""
+Streaming cursor of the table "progressPhotoLabel"
+"""
+input progressPhotoLabel_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: progressPhotoLabel_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input progressPhotoLabel_stream_cursor_value_input {
+  value: String
+  comment: String
+}
+"""
+Boolean expression to filter rows from the table "progress_photos". All fields are combined with a logical 'AND'.
+"""
+input progressPhoto_bool_exp {
+  _and: [progressPhoto_bool_exp!]
+  _not: progressPhoto_bool_exp
+  _or: [progressPhoto_bool_exp!]
+  id: uuid_comparison_exp
+  userId: uuid_comparison_exp
+  labelValue: progressPhotoLabel_enum_comparison_exp
+  takenOn: date_comparison_exp
+  createdAt: timestamptz_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  file: files_bool_exp
+  label: progressPhotoLabel_bool_exp
+}
+"""
+input type for inserting data into table "progress_photos"
+"""
+input progressPhoto_insert_input {
+  labelValue: progressPhotoLabel_enum
+  takenOn: date
+  file: files_obj_rel_insert_input
+}
+"""
+input type for inserting object relation for remote table "progress_photos"
+"""
+input progressPhoto_obj_rel_insert_input {
+  data: progressPhoto_insert_input!
+  """
+  upsert condition
+  """
+  on_conflict: progressPhoto_on_conflict
+}
+"""
+on_conflict condition type for table "progress_photos"
+"""
+input progressPhoto_on_conflict {
+  constraint: progressPhoto_constraint!
+  update_columns: [progressPhoto_update_column!]! = []
+  where: progressPhoto_bool_exp
+}
+"""
+Ordering options when selecting data from "progress_photos".
+"""
+input progressPhoto_order_by {
+  id: order_by
+  userId: order_by
+  labelValue: order_by
+  takenOn: order_by
+  createdAt: order_by
+  updatedAt: order_by
+  file: files_order_by
+  label: progressPhotoLabel_order_by
+}
+"""
+primary key columns input for table: progress_photos
+"""
+input progressPhoto_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "progress_photos"
+"""
+input progressPhoto_set_input {
+  labelValue: progressPhotoLabel_enum
+  takenOn: date
+}
+"""
+Streaming cursor of the table "progressPhoto"
+"""
+input progressPhoto_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: progressPhoto_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input progressPhoto_stream_cursor_value_input {
+  id: uuid
+  userId: uuid
+  labelValue: progressPhotoLabel_enum
+  takenOn: date
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+input progressPhoto_updates {
+  """
+  sets the columns of the filtered rows to the given values
+  """
+  _set: progressPhoto_set_input
+  """
+  filter the rows which have to be updated
+  """
+  where: progressPhoto_bool_exp!
 }
 input strengthHistory_exercises_args {
   from_at: timestamptz

@@ -1,0 +1,23 @@
+table:
+  name: files_to_delete
+  schema: storage
+configuration:
+  column_config:
+    deleted_at:
+      custom_name: deletedAt
+    id:
+      custom_name: id
+  custom_column_names:
+    deleted_at: deletedAt
+    id: id
+  custom_name: filesToDelete
+  custom_root_fields:
+    delete: deleteFilesToDelete
+    delete_by_pk: deleteFileToDelete
+    insert: insertFilesToDelete
+    insert_one: insertFileToDelete
+    select: filesToDelete
+    select_aggregate: filesToDeleteAggregate
+    select_by_pk: fileToDelete
+    update: updateFilesToDelete
+    update_by_pk: updateFileToDelete
