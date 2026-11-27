@@ -10,6 +10,7 @@ type = 'RS256'
 key = '{{ secrets.NHOST_JWT_PUBLIC_KEY }}'
 signingKey = '{{ secrets.NHOST_JWT_PRIVATE_KEY }}'
 kid = '{{ secrets.NHOST_JWT_KID }}'
+audience = 'https://neogym.nhost.app'
 
 [hasura.settings]
 corsDomain = ['*']
@@ -33,7 +34,8 @@ httpPoolSize = 100
 version = 24
 
 [auth]
-version = '0.53.0'
+version = '0.52.2-beta1'
+audience = "https://neogym.nhost.app"
 
 [auth.elevatedPrivileges]
 mode = 'disabled'
