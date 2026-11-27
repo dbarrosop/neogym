@@ -12,16 +12,18 @@ If an upload response is lost, read the reservation before retrying: a ready fil
 
 ## Private reads and deletion
 
-The dedicated bucket requests `Cache-Control: private, no-store` and disables presigning. GraphQL photo and file reads and Storage GET/HEAD/transforms require the owner's bearer; the file permission also checks that the Auth account exists. Nothing grants access to other users or the public. Public reads of `exercise_images` are unchanged. A delegated credential with the ordinary `user` role has the same access for its owner.
+The dedicated bucket requests `Cache-Control: private, no-store` and disables presigning. Photo rows are filtered by reservation owner. GraphQL file reads and Storage GET/HEAD/transforms are filtered by the stored uploader ID. Nothing grants access to other users or the public. Public reads of `exercise_images` are unchanged. A delegated credential with the ordinary `user` role has the same access for its owner.
 
-There is no app-role file update or replacement. The generic `insertFile` mutation can initialize a pending file for a valid reservation but cannot set `isUploaded`, the file owner, `etag` or custom metadata. It cannot make a photo ready. The app should send bytes via Storage REST, not a generic GraphQL file mutation.
+Account deletion nulls the reservation owner and hides the photo row immediately. File read and delete permissions do not check whether the uploader still has an Auth account. An already-issued access token can still read or delete that uploader's files until the token expires (access tokens are configured for 15 minutes) or the deleted-owner cleanup removes the file row, whichever comes first. Immediate revocation of Storage file access remains a release gate.
+
+There is no app-role file update or replacement. The generic `insertFile` mutation can initialize a pending file for a valid reservation but cannot set `isUploaded`, the file owner, `etag` or custom metadata. It cannot make a photo ready. The bucket enforces the 1 byte–5 MiB range on Storage REST uploads; the GraphQL insert permission does not enforce that range on the declared `size`. Apps should send bytes via Storage REST, not a generic GraphQL file mutation.
 
 After confirmation, delete a completed photo with authenticated `DELETE /v1/files/<id>`. The Storage row deletion cascades to the reservation. Reconcile an uncertain response by checking the photo and offer retry if it's still visible. Generic GraphQL `deleteFile` removes metadata and relies on Storage's asynchronous byte cleanup; no app role deletes reservation rows directly. A 404 or missing record confirms inaccessibility, not physical deletion.
 
 ## PostgreSQL cleanup
 
 - `neogym-progress-photo-expiry` runs daily at midnight in the `pg_cron` timezone (UTC by default). It removes reservations older than one hour with no file, and Storage rows of the same age that are incomplete or have no associated reservation. A reservation can no longer be used for a new upload after one hour, even if its row has not yet been removed. The job preserves completed photos with a reservation.
-- `neogym-progress-photo-deleted-owners` runs daily at 00:05 in the same timezone. Auth deletion immediately nulls the reservation owner and revokes photo and file access, including through an otherwise valid old JWT. This job removes files whose uploader no longer exists and any reservation without an owner or file. Both jobs are scoped to progress photos.
+- `neogym-progress-photo-deleted-owners` runs daily at 00:05 in the same timezone. It deletes file rows whose uploader no longer exists and reservations with neither an owner nor a file. Both jobs are scoped to progress photos.
 
 Postgres `DELETE` on `storage.files` queues cleanup through Storage's existing `storage.files_to_delete` trigger. The jobs have no webhook, application secret or object-store client. Ordinary queue drain is an accepted provider assumption, not a removal SLA. Storage 0.17.0 can leave bytes if a noncanonical request ID is used as the object key, or if an in-flight object write finishes after incomplete-file deletion and queue acknowledgement. Neither case restores access; use the server-issued canonical ID and reconcile pending uploads instead of deleting them.
 

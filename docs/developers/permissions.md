@@ -346,11 +346,11 @@ Nhost stores uploaded files in S3-compatible storage. This is the only table whe
 | Role | Action | Columns | Filter | Enforces |
 |---|---|---|---|---|
 | `public` | `select` | `id`, `name`, `size`, `bucket_id`, `etag`, `created_at`, `updated_at`, `is_uploaded`, `mime_type`, `uploaded_by_user_id`, `metadata` | filter: `bucket_id eq exercise_images` | Public catalog images are visible to unauthenticated visitors (so the marketing/landing flow works, and the app doesn't have to forge auth headers for image `<img src>`). Files in any other bucket are hidden from public. |
-| `user` | `select` | Same as public | `exercise_images`, or `progress_photos` with `uploaded_by_user_id eq self` and a matching `uploader` Auth row | The same Hasura file rule protects GraphQL rows and Storage REST reads; a deleted account's unexpired JWT does not confer access. |
-| `user` | `insert` | `id`, `bucket_id`, `name`, `size`, `mime_type`; preset `uploaded_by_user_id` | Progress bucket only; matching reservation and existing uploader; canonical JPEG filename, MIME and size | Initializes metadata only. `is_uploaded`, `etag` and `metadata` cannot be set by a generic file mutation. |
-| `user` | `delete` | — | Progress bucket only; uploader is caller with a matching Auth row | REST removes the object; a GraphQL metadata delete relies on Storage's cleanup queue. Both cascade the photo row. |
+| `user` | `select` | Same as public | `exercise_images`, or `progress_photos` with `uploaded_by_user_id eq self` | The same Hasura file rule protects GraphQL rows and Storage REST reads. |
+| `user` | `insert` | `id`, `bucket_id`, `name`, `size`, `mime_type`; preset `uploaded_by_user_id` | Progress bucket only; caller's reservation; name `progress-photo.jpg` and MIME `image/jpeg` | A generic GraphQL file insert initializes metadata only. The bucket enforces its size limits on Storage REST uploads, not on `size` supplied to GraphQL. |
+| `user` | `delete` | — | Progress bucket only; `uploaded_by_user_id eq self` | REST removes the object; a GraphQL metadata delete relies on Storage's cleanup queue. Both cascade the photo row. |
 
-No user update or replacement. The file grants apply to GraphQL and Storage REST; they confer no access to other buckets. The `auth.*`, `storage.buckets`, `storage.virus`, `storage.files_to_delete` remain admin-only.
+No user update or replacement. The file grants apply to GraphQL and Storage REST; they confer no access to other buckets. The progress-file read and delete filters use the stored uploader ID, not the admin-only `uploader` relationship, so [account deletion does not revoke file access immediately](progress-photos.md#private-reads-and-deletion). The `auth.*`, `storage.buckets`, `storage.virus`, `storage.files_to_delete` remain admin-only.
 
 ### Progress photos
 
