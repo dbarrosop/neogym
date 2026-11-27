@@ -12,28 +12,36 @@ private final class NoPhotoRedirects: NSObject, URLSessionTaskDelegate {
 /// Foundation's caches and the SDK's persistent GraphQL cache are both bypassed.
 final class ProgressPhotoTransport: Sendable {
     private let session: URLSession
+    private let uploadSession: URLSession
 
-    static func configuration() -> URLSessionConfiguration {
+    static func uploadConfiguration() -> URLSessionConfiguration { configuration(resourceTimeout: 300) }
+
+    static func configuration(resourceTimeout: TimeInterval = 45) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
         configuration.urlCredentialStorage = nil
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.timeoutIntervalForResource = 45
+        configuration.timeoutIntervalForResource = resourceTimeout
         return configuration
     }
 
-    init(configuration: URLSessionConfiguration = ProgressPhotoTransport.configuration()) {
+    init(configuration: URLSessionConfiguration = ProgressPhotoTransport.configuration(),
+         uploadConfiguration: URLSessionConfiguration = ProgressPhotoTransport.uploadConfiguration()) {
         session = URLSession(configuration: configuration, delegate: NoPhotoRedirects(), delegateQueue: nil)
+        uploadSession = URLSession(configuration: uploadConfiguration, delegate: NoPhotoRedirects(), delegateQueue: nil)
     }
 
-    deinit { session.invalidateAndCancel() }
+    deinit {
+        session.invalidateAndCancel()
+        uploadSession.invalidateAndCancel()
+    }
 
     var sdkTransport: URLSessionTransport { URLSessionTransport(session: session) }
 
-    func request(_ request: URLRequest, limit: Int, image: Bool = false) async throws -> (Int, Data, String?) {
-        let (stream, response) = try await session.bytes(for: request)
+    func request(_ request: URLRequest, limit: Int, image: Bool = false, uploading: Bool = false) async throws -> (Int, Data, String?) {
+        let (stream, response) = try await (uploading ? uploadSession : session).bytes(for: request)
         defer { stream.task.cancel() }
         guard let http = response as? HTTPURLResponse, http.url == request.url else {
             throw ProgressPhotoError.unavailable

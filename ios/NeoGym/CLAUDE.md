@@ -506,6 +506,8 @@ changes.
   owner-bound repository is injected alongside the ordinary repositories; it
   uses the same managed session store and SDK refresh transaction, but sends
   photo GraphQL and Storage through an ephemeral, no-redirect transport.
+  Uploads use a separate five-minute resource budget with the same privacy
+  and cancellation rules; GraphQL and image reads keep their shorter limits.
   The Body summary card and top photo route scope their metadata and requests;
   only the bounded, per-account foreground image cache survives between
   surfaces. Thumbnail/original ETags are separate, 304s reuse decoded pixels,

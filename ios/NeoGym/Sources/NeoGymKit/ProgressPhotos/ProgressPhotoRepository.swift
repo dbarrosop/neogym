@@ -161,7 +161,7 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
         struct Result: Decodable { let processedFiles: [ProgressPhoto.File] }
         let boundary = "NeoGym-\(UUID().uuidString)"
         let (status, response, _) = try await send(files, method: "POST", contentType: "multipart/form-data; boundary=\(boundary)",
-            body: Self.multipart(jpeg, id: id, boundary: boundary), timeout: 45)
+            body: Self.multipart(jpeg, id: id, boundary: boundary), timeout: 45, uploading: true)
         guard (200..<300).contains(status) else { return false }
         let result = try JSONDecoder().decode(Result.self, from: response)
         return result.processedFiles.count == 1 && result.processedFiles.first == .init(id: id, isUploaded: true)
@@ -231,7 +231,7 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
 
     private func send(_ url: URL, method: String, contentType: String? = nil, body: Data? = nil,
                       timeout: TimeInterval = 12, limit: Int = 512 * 1024, image: Bool = false,
-                      ifNoneMatch: String? = nil) async throws -> (Int, Data, String?) {
+                      ifNoneMatch: String? = nil, uploading: Bool = false) async throws -> (Int, Data, String?) {
         do {
             let token = try await bearer.token()
             var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
@@ -242,7 +242,7 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
             request.setValue(ifNoneMatch, forHTTPHeaderField: "If-None-Match")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             try await bearer.checkOwner()
-            let result = try await transport.request(request, limit: limit, image: image)
+            let result = try await transport.request(request, limit: limit, image: image, uploading: uploading)
             try await bearer.checkOwner()
             return result
         } catch {

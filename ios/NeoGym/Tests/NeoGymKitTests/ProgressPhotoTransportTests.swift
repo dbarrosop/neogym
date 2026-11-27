@@ -147,6 +147,27 @@ final class ProgressPhotoTransportTests: XCTestCase {
         }
     }
 
+    func testUploadUsesSeparateLongResourceBudgetAndKeepsIdleTimeout() async throws {
+        let configuration = ProgressPhotoTransport.configuration()
+        XCTAssertEqual(configuration.timeoutIntervalForResource, 45)
+        configuration.protocolClasses = [PhotoURLProtocol.self]
+        let uploadConfiguration = ProgressPhotoTransport.uploadConfiguration()
+        XCTAssertEqual(uploadConfiguration.timeoutIntervalForResource, 300)
+        XCTAssertNil(uploadConfiguration.urlCache)
+        XCTAssertNil(uploadConfiguration.httpCookieStorage)
+        XCTAssertNil(uploadConfiguration.urlCredentialStorage)
+        XCTAssertFalse(uploadConfiguration.httpShouldSetCookies)
+        uploadConfiguration.protocolClasses = [PhotoUploadURLProtocol.self]
+        let client = createClient(NhostClientOptions(
+            storageURL: URL(string: "https://photos.example.test/v1"),
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try credential(owner: "photo-owner")))
+        ))
+        let transport = ProgressPhotoTransport(configuration: configuration, uploadConfiguration: uploadConfiguration)
+        let repository = try XCTUnwrap(ProgressPhotoRepository(client: client, owner: "photo-owner", transport: transport))
+        let uploaded = try await repository.upload(Data([0xff, 0xd8, 0xff, 0xd9]), to: photoFixtureId)
+        XCTAssertTrue(uploaded)
+    }
+
     func testUnsolicitedNotModifiedIsNotAccepted() async throws {
         let repo = try imageRepository()
         do {
@@ -319,6 +340,26 @@ private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
 }
 
 private let photoFixturePNG = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAYAAAAICAIAAABVpBlvAAAAEUlEQVR4nGOYve8EGmIYDEIAUCpmMfUNqeIAAAAASUVORK5CYII=")!
+
+private final class PhotoUploadURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "photos.example.test" }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        guard let url = request.url, url.path == "/v1/files", request.httpMethod == "POST",
+              request.cachePolicy == .reloadIgnoringLocalCacheData,
+              request.value(forHTTPHeaderField: "Cache-Control") == "no-store",
+              request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true,
+              let response = HTTPURLResponse(url: url, statusCode: 201, httpVersion: nil, headerFields: ["Content-Type": "application/json"]) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+        XCTAssertEqual(request.timeoutInterval, 45)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"processedFiles":[{"id":"\#(photoFixtureId)","isUploaded":true}]}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
 
 private actor PausedPhotoRead: ProgressPhotoRepositoryProtocol {
     let response: Result<ProgressPhotoImageResponse, ProgressPhotoError>

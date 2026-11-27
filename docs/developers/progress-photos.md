@@ -49,7 +49,9 @@ The web app keeps photo rows and image bytes only in its in-memory query cache, 
   and never trigger HealthKit or change a reading.
 - **Check-in:** uses one date (local today by default) and one native
   PhotosPicker per catalog angle. It uploads prepared slots one at a time
-  with separate immutable reservations. The date locks when uploads start;
+  with separate immutable reservations. Each upload has a 45-second idle timeout
+  and a five-minute total budget; other photo requests still have a 45-second
+  total budget. The date locks when uploads start;
   retry reuses the original reservation and never repeats a successful
   slot. A lost reservation response cannot be retried in the same form.
   Completing the check-in or tapping Done after partial success opens the
