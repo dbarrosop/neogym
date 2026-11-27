@@ -15,7 +15,7 @@ import {
 import catalog from "./catalog.json";
 import { recordedPath, upsert, type WorkflowRecord } from "./driver";
 import { dateBefore, exerciseFixtures, foodFixtures, SEED_DOCUMENTS } from "./fixtures";
-import { CHECK_PHOTOS } from "./progress-photos";
+import { CHECK_PHOTO_FILES, CHECK_PHOTOS } from "./progress-photos";
 import { CHECK_DOCUMENTS } from "./workflows";
 
 const schema = buildSchema(
@@ -122,6 +122,7 @@ for (const [name, document] of [
   ...Object.entries(SEED_DOCUMENTS),
   ...Object.entries(CHECK_DOCUMENTS),
   ["progress photos", CHECK_PHOTOS] as const,
+  ["progress photo files", CHECK_PHOTO_FILES] as const,
 ]) {
   test(`gallery ${name} document is valid against the canonical user-role SDL`, () => {
     expect(validate(schema, parse(document)).map((error) => error.message)).toEqual([]);

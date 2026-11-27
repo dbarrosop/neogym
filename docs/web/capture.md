@@ -68,9 +68,12 @@ can allocate fresh row IDs; walkthroughs record route shapes rather than those
 IDs, and the IDs aren’t rendered. No admin secret, production session or
 persistent credential file is used. The last layout’s common fictional rows
 remain until the next capture. The photo walkthrough produces both illustrations
-in memory, requires an empty owner photo history, and removes its remaining
-uploads through local Storage in teardown. Reservations that never acquired a
-file use ordinary expiry. This verifies visibility and cleanup requests, not
+in memory and requires an empty owner photo history. Its teardown deletes, through
+local Storage, every file the reserved account uploaded to the photo bucket. That
+includes leftovers from a forcibly killed run: the reset recreates the account with
+the same ID, which hides the old photo rows but not their files, so the next
+completed photo capture removes them. Reservations that never acquired a file use
+ordinary expiry. This verifies visibility and cleanup requests, not
 physical object removal. Do not run captures concurrently; a workspace lock
 enforces this. If the process was forcibly killed, remove
 `.nhost-code/tmp/web-gallery.lock` only after confirming it is no longer running.

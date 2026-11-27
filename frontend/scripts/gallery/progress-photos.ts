@@ -32,6 +32,18 @@ async function photos(backend: CaptureBackend): Promise<Photo[]> {
   return (await backend.query<{ progressPhotos: Photo[] }>(CHECK_PHOTOS)).progressPhotos;
 }
 
+// Every file the signed-in account uploaded to the photo bucket: the user-role select
+// permission limits `progress_photos` files to their uploader, and the bucket filter keeps
+// public exercise images out.
+export const CHECK_PHOTO_FILES = `query GalleryCheckProgressPhotoFiles {
+  files(where: {bucketId: {_eq: "progress_photos"}}) { id }
+}`;
+
+async function photoFiles(backend: CaptureBackend): Promise<string[]> {
+  const { files } = await backend.query<{ files: { id: string }[] }>(CHECK_PHOTO_FILES);
+  return files.map(({ id }) => id);
+}
+
 // Deliberately illustrated: no photo of a person, remote asset, or local file is read.
 async function illustration(page: Page, alternate: boolean) {
   const colors = alternate ? ["#d5ae7c", "#57443a", "#dbaf8b"] : ["#9abfd5", "#263e53", "#c58262"];
@@ -129,18 +141,22 @@ export async function captureProgressPhotos(
   backend: CaptureBackend,
   today: string,
 ) {
-  // The driver already confirmed the reserved account identity at sign-in. If it is
-  // not empty, do not treat any prior photo as ours to display, edit, or delete.
+  // The driver already confirmed the reserved account identity at sign-in. The walkthrough
+  // must start with no visible photo, so every photo it shows, edits or deletes is its own.
   expect(await photos(backend)).toEqual([]);
   try {
     await walkthrough(guide, backend, today);
   } finally {
-    // Delete only file IDs from this workflow's previously empty owner scope. An
-    // upload that never initialized its file is left to normal reservation expiry.
-    const remaining = await photos(backend);
-    await Promise.all(
-      remaining.flatMap(({ file }) => (file ? [backend.removeFixturePhoto(file.id)] : [])),
-    );
+    // Delete every file this account uploaded to the photo bucket, not only those behind
+    // its visible photos. A forcibly killed run skips this block, and the next per-layout
+    // reset recreates the account with the same ID: the old reservations become ownerless
+    // (hidden from `photos`), while their files keep this uploader, so no cleanup job
+    // would ever remove them. Only the marked reserved fixture identity can hold that ID
+    // (the seed fails closed otherwise), so these files are capture output. Deleting a
+    // file also deletes its reservation. An upload that never initialized its file is left
+    // to normal reservation expiry.
+    await Promise.all((await photoFiles(backend)).map((id) => backend.removeFixturePhoto(id)));
+    expect(await photoFiles(backend)).toEqual([]);
     expect((await photos(backend)).filter(({ file }) => file !== null)).toEqual([]);
   }
   guide.check("The runner removed the remaining synthetic upload through Storage after capture");
