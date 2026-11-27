@@ -5,6 +5,24 @@ public struct ProgressPhotoSummary: Equatable, Sendable {
     public let latestDate: String?
 }
 
+/// A deliberate swipe in the full-screen viewer. Ignore short drags and
+/// diagonals so an attempted photo step doesn't accidentally dismiss it.
+public enum ProgressPhotoSwipe: Equatable, Sendable {
+    case older, newer, dismiss
+
+    public init?(horizontal: Double, vertical: Double) {
+        let width = abs(horizontal)
+        let height = abs(vertical)
+        if height >= 55, height >= 1.4 * width {
+            self = .dismiss
+        } else if width >= 55, width >= 1.4 * height {
+            self = horizontal < 0 ? .newer : .older
+        } else {
+            return nil
+        }
+    }
+}
+
 /// Presentation rules shared by the Body card, gallery, viewer, and comparison.
 /// Input photo rows use the server's descending (takenOn, createdAt, id) order.
 public enum ProgressPhotoHistory {

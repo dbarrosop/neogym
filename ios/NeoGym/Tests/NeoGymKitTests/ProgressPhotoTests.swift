@@ -101,6 +101,17 @@ final class ProgressPhotoTests: XCTestCase {
         XCTAssertEqual(reversed.days, 0)
     }
 
+    func testFullScreenPhotoSwipeUsesDominantAxisAndIgnoresShortOrDiagonalDrags() {
+        XCTAssertEqual(ProgressPhotoSwipe(horizontal: -80, vertical: 20), .newer)
+        XCTAssertEqual(ProgressPhotoSwipe(horizontal: 80, vertical: -20), .older)
+        XCTAssertEqual(ProgressPhotoSwipe(horizontal: 15, vertical: 80), .dismiss)
+        XCTAssertEqual(ProgressPhotoSwipe(horizontal: -15, vertical: -80), .dismiss)
+        XCTAssertNil(ProgressPhotoSwipe(horizontal: 30, vertical: 0))
+        XCTAssertNil(ProgressPhotoSwipe(horizontal: 0, vertical: 30))
+        XCTAssertNil(ProgressPhotoSwipe(horizontal: -95, vertical: 90))
+        XCTAssertNil(ProgressPhotoSwipe(horizontal: 90, vertical: -95))
+    }
+
     func testPhotoMeasurementsUseSameDayOrBoundedComparisonLookback() {
         let older = BodyMeasurement(id: "1", measuredOn: "2024-02-22", weightKg: 73, bodyFatPct: 19)
         let latest = BodyMeasurement(id: "2", measuredOn: "2024-03-02", weightKg: 72)

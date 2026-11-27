@@ -197,7 +197,7 @@ new baseline.
 | Auth / email / PKCE | Display-only sample profile; no auth model, OTP, email change or deep-link exchange |
 | GraphQL / SDK cache | Local repository calls only; no production client or cache |
 | Exercise images | Bundled illustrations; file-backed demo URLs never enter `AsyncImage` |
-| Progress photos | No repository, Body photo card, photo routes or PhotosPicker; measurement logging remains available |
+| Progress photos | Read-only Body card, gallery, detail/full-screen viewer and Compare. The demo repository reads bundled illustrations and demo Body rows only; no PhotosPicker, photo mutations or network |
 | HealthKit | No importers or access requests; records say fictional demo data, not imported |
 | WatchConnectivity / PAT | Disabled object; no activation, application-context hints, PAT creation or messages |
 | Widgets | `EnergyWidgetUpdates.disabled` suppresses both snapshot saves and timeline reloads |

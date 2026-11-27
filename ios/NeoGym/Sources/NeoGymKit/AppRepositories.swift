@@ -29,7 +29,7 @@ public struct AppRepositories: Sendable {
             workouts: DemoWorkoutsRepository(store: store), sessions: DemoSessionsRepository(store: store),
             exercises: DemoExercisesRepository(store: store), nutrition: DemoNutritionRepository(store: store),
             body: DemoBodyRepository(store: store), energy: DemoEnergyRepository(store: store), journal: DemoJournalRepository(store: store),
-            progressPhotos: nil
+            progressPhotos: DemoProgressPhotoRepository(store: store)
         )
     }
 }

@@ -20,6 +20,9 @@ struct ProgressPhotoGallery: View {
 
     var body: some View {
         FormScrollContainer {
+            if repository.isDemo {
+                Text("Fictional sample photos · Read-only").font(.footnote).foregroundStyle(NeoGymTheme.textSecondary)
+            }
             if !catalog.isEmpty {
                 PhotoAngleChips(catalog: catalog, selection: $angle, includesAll: true)
             }
@@ -34,10 +37,12 @@ struct ProgressPhotoGallery: View {
                     }
                     .accessibilityIdentifier("progressPhotos.compare")
                 }
-                NavigationLink(value: ProgressRoute.progressPhotoCreate(date: nil, angle: nil)) {
-                    Label("Add photos", systemImage: "plus")
+                if !repository.isDemo {
+                    NavigationLink(value: ProgressRoute.progressPhotoCreate(date: nil, angle: nil)) {
+                        Label("Add photos", systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("progressPhotos.add")
                 }
-                .accessibilityIdentifier("progressPhotos.add")
             }
         }
         .task(id: LoadKey(angle: angle, request: request)) { await loadFirst() }
@@ -57,7 +62,7 @@ struct ProgressPhotoGallery: View {
         } else if rows.photos.isEmpty && rows.next == nil {
             AppEmptyStateView(
                 title: angle.isEmpty ? "No progress photos yet" : "No photos for this angle",
-                message: angle.isEmpty ? "Add photos to start your private history." : "Choose another angle or show all photos.",
+                message: emptyMessage,
                 systemImage: "photo"
             )
         } else {
@@ -74,6 +79,11 @@ struct ProgressPhotoGallery: View {
         }
     }
 
+    private var emptyMessage: String {
+        if !angle.isEmpty { return "Choose another angle or show all photos." }
+        return repository.isDemo ? "No sample photos are available." : "Add photos to start your private history."
+    }
+
     private var contactSheet: some View {
         let sheet = ProgressPhotoHistory.sheet(rows.photos, catalog: catalog)
         let columnCount = max(1, min(sheet.columns.count, typeSize.isAccessibilitySize ? 1 : 4))
@@ -81,13 +91,14 @@ struct ProgressPhotoGallery: View {
             ForEach(sheet.days) { day in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(ProgressPhotoDate.display(day.date)).font(.headline).accessibilityAddTraits(.isHeader)
-                    PhotoMeasurementCaption(measurement: ProgressPhotoHistory.measurement(measurements, for: day.date), date: day.date)
+                    PhotoMeasurementCaption(measurement: ProgressPhotoHistory.measurement(measurements, for: day.date),
+                                            date: day.date, reservesSpace: true)
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: columnCount), spacing: 10) {
                         ForEach(sheet.columns) { label in
                             let photos = day.photos.filter { $0.label.value == label.value }
                             if let first = photos.first {
                                 tile(first, caption: label.name, extra: photos.count > 1 ? "\(photos.count) photos" : nil)
-                            } else if catalog.contains(where: { $0.value == label.value }) {
+                            } else if !repository.isDemo && catalog.contains(where: { $0.value == label.value }) {
                                 NavigationLink(value: ProgressRoute.progressPhotoCreate(date: day.date, angle: label.value)) {
                                     VStack(spacing: 4) {
                                         Image(systemName: "plus")
@@ -117,7 +128,7 @@ struct ProgressPhotoGallery: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
             ForEach(rows.photos) { photo in
                 tile(photo, caption: ProgressPhotoDate.display(photo.takenOn), height: 152,
-                     extra: PhotoMeasurementCaption.text(ProgressPhotoHistory.measurement(measurements, for: photo.takenOn)))
+                     extra: PhotoMeasurementCaption.text(ProgressPhotoHistory.measurement(measurements, for: photo.takenOn)) ?? "—")
             }
         }
     }
@@ -128,7 +139,10 @@ struct ProgressPhotoGallery: View {
                 ProgressPhotoDisplay(repository: repository, scope: scope, id: photo.id, thumbnailSlots: slots, label: "", thumbnailHeight: height)
                     .accessibilityHidden(true)
                 Text(caption).font(.caption.weight(.semibold)).padding(.horizontal, 6)
-                if let extra { Text(extra).font(.caption2).foregroundStyle(NeoGymTheme.textSecondary).padding(.horizontal, 6) }
+                if let extra {
+                    Text(extra).font(.caption2).foregroundStyle(NeoGymTheme.textSecondary).padding(.horizontal, 6)
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1, reservesSpace: true)
+                }
             }
             .padding(.bottom, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -138,6 +152,7 @@ struct ProgressPhotoGallery: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel([photo.label.name, ProgressPhotoDate.display(photo.takenOn), extra].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityIdentifier("progressPhotos.tile.\(photo.label.value)")
     }
 
     private func loadFirst() async {

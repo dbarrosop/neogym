@@ -35,87 +35,115 @@ struct ProgressPhotoDisplay: View {
     let label: String
     var thumbnailHeight: CGFloat = 160
     var fillFrame = false
+    var fullScreen = false
+    var onOpenFullScreen: (() -> Void)?
+    var prefetch: [String] = []
+    @Environment(\.progressPhotoImageCache) private var cache
     @State private var visible = false
-    @State private var pixels: CGImage?
-    @State private var failed = false
+    @State private var loaded: Loaded?
+    @State private var failedKey: ProgressPhotoImageCache.Key?
     @State private var retry = 0
 
+    private struct Loaded {
+        let key: ProgressPhotoImageCache.Key
+        let image: CGImage
+    }
+
+    private struct Request: Equatable {
+        let key: ProgressPhotoImageCache.Key
+        let retry: Int
+        let active: Bool
+    }
+
+    private struct Prefetch: Equatable {
+        let key: ProgressPhotoImageCache.Key
+        let ids: [String]
+    }
+
     private var thumbnail: Bool { thumbnailSlots != nil }
+    private var key: ProgressPhotoImageCache.Key { .init(id: id, thumbnail: thumbnail) }
+    private var active: Bool { !thumbnail || visible }
+    private var image: CGImage? {
+        guard active, failedKey != key else { return nil }
+        if loaded?.key == key { return loaded?.image }
+        return cache?.image(for: key) ?? (!thumbnail ? cache?.image(for: .init(id: id, thumbnail: true)) : nil)
+    }
 
     var body: some View {
         Group {
             if thumbnail {
-                NeoGymTheme.inset.frame(height: thumbnailHeight)
-                    .overlay {
-                        if let pixels {
-                            Image(decorative: pixels, scale: 1).resizable().scaledToFill()
-                        } else {
-                            placeholder
-                        }
-                    }
-                    .clipped()
-            } else if fillFrame {
-                NeoGymTheme.inset.overlay {
-                    if let pixels {
-                        Image(pixels, scale: 1, label: Text(label)).resizable().scaledToFill()
-                    } else { placeholder }
-                }
-                .clipped()
-            } else if let pixels {
-                Image(pixels, scale: 1, label: Text(label)).resizable().scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: 620)
+                NeoGymTheme.inset.frame(height: thumbnailHeight).overlay { content }.clipped()
+            } else if fullScreen || fillFrame {
+                (fullScreen ? Color.black : NeoGymTheme.inset)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).overlay { content }.clipped()
             } else {
-                placeholder.frame(maxWidth: .infinity, minHeight: 180).background(NeoGymTheme.inset)
+                NeoGymTheme.inset.aspectRatio(4.0 / 5.0, contentMode: .fit)
+                    .frame(maxWidth: 496).overlay { content }.clipped()
+                    .frame(maxWidth: .infinity)
             }
         }
         .onScrollVisibilityChange(threshold: 0.01) { isVisible in
             if thumbnail {
                 visible = isVisible
-                if !isVisible { pixels = nil; failed = false }
+                if !isVisible { loaded = nil; failedKey = nil }
             }
         }
-        .task(id: thumbnail && !visible ? nil : retry) {
-            if thumbnail && !visible { return }
-            await load()
+        .task(id: Request(key: key, retry: retry, active: active)) {
+            if active { await load(key) }
         }
-        .onDisappear { pixels = nil }
+        .task(id: Prefetch(key: key, ids: loaded?.key == key ? prefetch : [])) {
+            if loaded?.key == key, let cache {
+                for neighbor in prefetch where !Task.isCancelled {
+                    _ = try? await cache.load(.init(id: neighbor, thumbnail: false), repository: repository, scope: scope)
+                }
+            }
+        }
+        .onDisappear { loaded = nil }
     }
 
-    @ViewBuilder private var placeholder: some View {
-        if failed && thumbnail {
-            Text("Preview unavailable").font(.caption)
-        } else if failed {
-            VStack {
-                Text("Image unavailable")
-                Button("Retry image") { failed = false; retry += 1 }.frame(minHeight: 44)
+    @ViewBuilder private var content: some View {
+        if let image {
+            let photo = Image(image, scale: 1, label: Text(label)).resizable()
+                .aspectRatio(contentMode: thumbnail || fillFrame ? .fill : .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let onOpenFullScreen {
+                Button(action: onOpenFullScreen) { photo.contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(label)
+                    .accessibilityHint("Opens full screen")
+                    .accessibilityIdentifier("progressPhotos.openFullScreen")
+            } else { photo }
+        } else if failedKey == key {
+            VStack(spacing: 4) {
+                Text(thumbnail ? "Preview unavailable" : "Image unavailable").font(.caption)
+                if !thumbnail && !fullScreen {
+                    Button("Retry image") { failedKey = nil; retry += 1 }.frame(minHeight: 44)
+                }
             }
         } else {
-            ProgressView().accessibilityLabel("Loading image")
+            Image(systemName: "photo").foregroundStyle(.secondary).accessibilityLabel("Loading image")
         }
     }
 
-    private func load() async {
+    private func load(_ requestKey: ProgressPhotoImageCache.Key) async {
         do {
             try scope.check()
             if let thumbnailSlots { try await thumbnailSlots.acquire() }
             let result: CGImage
             do {
-                try scope.check()
-                let bytes = try await repository.imageBytes(id, thumbnail: thumbnail)
-                result = try await Self.decode(bytes, thumbnail: thumbnail)
+                let storage = cache ?? ProgressPhotoImageCache(byteLimit: 0)
+                result = try await storage.load(requestKey, repository: repository, scope: scope)
             } catch {
                 if let thumbnailSlots { await thumbnailSlots.release() }
                 throw error
             }
             if let thumbnailSlots { await thumbnailSlots.release() }
             try scope.check()
-            if !thumbnail || visible { pixels = result }
+            if active { loaded = .init(key: requestKey, image: result); failedKey = nil }
+        } catch is CancellationError {
+            // A cancelled offscreen or superseded request cannot change the current image.
         } catch {
-            if (try? scope.check()) != nil { failed = true }
+            if (try? scope.check()) != nil { loaded = nil; failedKey = requestKey }
         }
-    }
-
-    nonisolated private static func decode(_ bytes: Data, thumbnail: Bool) async throws -> CGImage {
-        try ProgressPhotoImage.display(bytes, thumbnail: thumbnail)
     }
 }

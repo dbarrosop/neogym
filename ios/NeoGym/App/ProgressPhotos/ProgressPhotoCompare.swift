@@ -23,7 +23,7 @@ struct ProgressPhotoCompare: View {
 
     var body: some View {
         FormScrollContainer {
-            Text("Two photos with the same angle, oldest on the left.")
+            Text(repository.isDemo ? "Two fictional sample photos, oldest on the left." : "Two photos with the same angle, oldest on the left.")
                 .font(.subheadline).foregroundStyle(NeoGymTheme.textSecondary)
             if !catalog.isEmpty {
                 PhotoAngleChips(catalog: catalog, selection: Binding(get: { angle }, set: { selected in
@@ -43,10 +43,13 @@ struct ProgressPhotoCompare: View {
                 comparison(pair)
             } else {
                 let name = catalog.first { $0.value == angle }?.name
-                AppEmptyStateView(title: name.map { "Add at least two \($0) photos to compare" } ?? "No angles available",
+                let title = name.map { "Add at least two \($0) photos to compare" } ?? "No angles available"
+                AppEmptyStateView(title: repository.isDemo ? "Not enough sample photos for this angle" : title,
                                   message: "Comparing works best with photos taken the same way, a few weeks apart.", systemImage: "rectangle.split.2x1")
-                NavigationLink("Add photos", value: ProgressRoute.progressPhotoCreate(date: nil, angle: angle))
-                    .buttonStyle(.bordered).controlSize(.large)
+                if !repository.isDemo {
+                    NavigationLink("Add photos", value: ProgressRoute.progressPhotoCreate(date: nil, angle: angle))
+                        .buttonStyle(.bordered).controlSize(.large)
+                }
             }
         }
         .navigationTitle("Compare photos")
@@ -182,9 +185,9 @@ private struct PhotoComparisonSlider: View {
             }
             .aspectRatio(4.0 / 5.0, contentMode: .fit)
             .clipShape(.rect(cornerRadius: 14))
-            Slider(value: $position, in: 0...1) { Text("Divider position") }
+            Slider(value: $position, in: 0...1) { Text("Photo comparison divider") }
                 .frame(minHeight: 44)
-                .accessibilityLabel("Divider position between the before and after photos")
+                .accessibilityIdentifier("progressPhotos.compareDivider")
         }
     }
 

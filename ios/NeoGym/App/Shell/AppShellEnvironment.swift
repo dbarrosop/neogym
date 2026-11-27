@@ -72,6 +72,7 @@ struct EnergyWidgetUpdates {
 extension EnvironmentValues {
     @Entry var demoActions: DemoActions?
     @Entry var privateProgressPhotos: (any ProgressPhotoRepositoryProtocol)?
+    @Entry var progressPhotoImageCache: ProgressPhotoImageCache?
     @Entry var energyWidgetUpdates = EnergyWidgetUpdates.live
     /// Live mode only; demo has no widgets or Live Activities to open it.
     @Entry var appDeepLinks: AppDeepLinkRouter?

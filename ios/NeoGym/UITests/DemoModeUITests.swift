@@ -24,17 +24,95 @@ final class DemoModeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Change email"].exists)
     }
 
-    func testBodyKeepsMeasurementLoggingAndOmitsProgressPhotosInDemo() {
+    func testBodyKeepsMeasurementLoggingAndShowsReadOnlyProgressPhotos() {
         launch(screen: "progress/body", reset: true)
-        XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 10))
         let measurement = app.navigationBars.buttons["Log measurement"]
         XCTAssertTrue(measurement.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["progressPhotos.open"].exists)
-        XCTAssertFalse(app.staticTexts["Progress photos"].exists)
         measurement.tap()
         XCTAssertTrue(app.navigationBars.buttons["Cancel"].waitForExistence(timeout: 10))
         app.navigationBars.buttons["Cancel"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 10))
+
+        let open = app.buttons["progressPhotos.open"]
+        // The interactive charts consume drags; scroll through the right gutter.
+        for _ in 0..<5 where !open.isHittable { scrollPhotoPage() }
+        XCTAssertTrue(open.isHittable, "The Body photo card should be reachable below the charts")
+        XCTAssertTrue(app.staticTexts["Fictional sample photos · Read-only"].exists)
+        XCTAssertFalse(app.buttons["progressPhotos.addFromBody"].exists)
+        attachScreenshot("Demo progress photos — Body shortcut")
+        open.tap()
+        let tile = app.buttons.matching(identifier: "progressPhotos.tile.front_a").firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["progressPhotos.add"].exists)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Add Back A photo'")).firstMatch.exists)
+        attachScreenshot("Demo progress photos — Gallery")
+        tile.tap()
+
+        let photo = app.buttons["progressPhotos.openFullScreen"]
+        XCTAssertTrue(photo.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.navigationBars.buttons["Edit"].exists)
+        XCTAssertFalse(app.buttons["Delete photo"].exists)
+        attachScreenshot("Demo progress photos — Detail")
+
+        let older = app.buttons["Older"]
+        XCTAssertTrue(older.waitForExistence(timeout: 10))
+        let position = app.staticTexts["3 of 3"]
+        XCTAssertTrue(position.waitForExistence(timeout: 10))
+        let frame = photo.frame
+        let controlsY = older.frame.minY
+        older.tap()
+        XCTAssertTrue(app.staticTexts["2 of 3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(photo.waitForExistence(timeout: 5))
+        XCTAssertEqual(photo.frame.height, frame.height, accuracy: 1)
+        XCTAssertEqual(photo.frame.minY, frame.minY, accuracy: 1)
+        XCTAssertEqual(older.frame.minY, controlsY, accuracy: 1)
+
+        app.buttons["Newer"].tap()
+        XCTAssertTrue(position.waitForExistence(timeout: 5))
+        photo.tap()
+        let fullScreen = app.descendants(matching: .any)["progressPhotos.fullScreen"].firstMatch
+        XCTAssertTrue(fullScreen.waitForExistence(timeout: 10))
+        let fullScreenImage = app.images["Front A progress photo"]
+        let first = NSPredicate(format: "label CONTAINS 'Photo 3 of 3'")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: first, object: fullScreen)], timeout: 10), .completed)
+        XCTAssertTrue(fullScreenImage.waitForExistence(timeout: 5))
+        attachScreenshot("Demo progress photos — Full screen")
+        fullScreen.swipeRight()
+        let second = NSPredicate(format: "label CONTAINS 'Photo 2 of 3'")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: second, object: fullScreen)], timeout: 10), .completed)
+        XCTAssertTrue(fullScreenImage.waitForExistence(timeout: 5))
+        fullScreen.swipeDown()
+        XCTAssertTrue(app.staticTexts["2 of 3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(photo.waitForExistence(timeout: 5))
+        photo.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: second, object: fullScreen)], timeout: 5), .completed)
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5) || app.state == .runningBackgroundSuspended)
+        app.activate()
+        XCTAssertTrue(app.navigationBars["Progress photo"].waitForExistence(timeout: 10))
+        XCTAssertFalse(fullScreen.exists, "Backgrounding must retire the full-screen cover")
+        let compare = app.buttons["Compare"]
+        for _ in 0..<3 where !compare.isHittable { scrollPhotoPage() }
+        XCTAssertTrue(compare.isHittable)
+        XCTAssertTrue(app.staticTexts["2 of 3"].exists)
+        compare.tap()
+        XCTAssertTrue(app.navigationBars["Compare photos"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Two fictional sample photos, oldest on the left."].exists)
+        let slider = app.sliders["progressPhotos.compareDivider"]
+        XCTAssertTrue(slider.waitForExistence(timeout: 10))
+        let beforeImage = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Before, Front A'")).firstMatch
+        XCTAssertTrue(beforeImage.waitForExistence(timeout: 10))
+        attachScreenshot("Demo progress photos — Compare")
+        if !slider.isHittable { scrollPhotoPage(end: 0.58) }
+        XCTAssertTrue(slider.isHittable)
+        let initialPosition = slider.value as? String
+        slider.adjust(toNormalizedSliderPosition: 0.35)
+        XCTAssertNotEqual(slider.value as? String, initialPosition)
+    }
+
+    private func scrollPhotoPage(end: CGFloat = 0.28) {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.76)).press(forDuration: 0.05,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: end)))
     }
 
     func testDemoBannerLeavesNativeToolbarBackAndCreateUsable() {

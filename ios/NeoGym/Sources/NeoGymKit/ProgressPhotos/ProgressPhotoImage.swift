@@ -65,9 +65,10 @@ public enum ProgressPhotoImage {
         return pixels
     }
 
-    public static func display(_ data: Data, thumbnail: Bool) throws -> CGImage {
+    public static func display(_ data: Data, thumbnail: Bool, displayMaxEdge: Int = maxEdge) throws -> CGImage {
         guard data.count <= jpegLimit else { throw ProgressPhotoError.inputTooLarge }
-        return try decode(data, formats: displayFormats, maxEdge: thumbnail ? max(thumbnailWidth, thumbnailHeight) : maxEdge)
+        return try decode(data, formats: displayFormats,
+                          maxEdge: thumbnail ? max(thumbnailWidth, thumbnailHeight) : min(maxEdge, displayMaxEdge))
     }
 
     private static func decode(_ data: Data, formats: [UTType], maxEdge: Int) throws -> CGImage {

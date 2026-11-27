@@ -160,7 +160,7 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
         }
         struct Result: Decodable { let processedFiles: [ProgressPhoto.File] }
         let boundary = "NeoGym-\(UUID().uuidString)"
-        let (status, response) = try await send(files, method: "POST", contentType: "multipart/form-data; boundary=\(boundary)",
+        let (status, response, _) = try await send(files, method: "POST", contentType: "multipart/form-data; boundary=\(boundary)",
             body: Self.multipart(jpeg, id: id, boundary: boundary), timeout: 45)
         guard (200..<300).contains(status) else { return false }
         let result = try JSONDecoder().decode(Result.self, from: response)
@@ -178,11 +178,18 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
     }
 
     public func delete(_ id: String) async throws -> Bool {
-        let (status, _) = try await send(fileURL(id), method: "DELETE")
+        let (status, _, _) = try await send(fileURL(id), method: "DELETE")
         return (200..<300).contains(status) || status == 404
     }
 
     public func imageBytes(_ id: String, thumbnail: Bool) async throws -> Data {
+        guard case let .image(bytes, _) = try await fetchImage(id, thumbnail: thumbnail, ifNoneMatch: nil) else {
+            throw ProgressPhotoError.unavailable
+        }
+        return bytes
+    }
+
+    public func fetchImage(_ id: String, thumbnail: Bool, ifNoneMatch: String?) async throws -> ProgressPhotoImageResponse {
         var parts = URLComponents(url: try fileURL(id), resolvingAgainstBaseURL: false)
         if thumbnail {
             parts?.queryItems = [
@@ -191,9 +198,20 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
             ]
         }
         guard let url = parts?.url else { throw ProgressPhotoError.unavailable }
-        let (status, bytes) = try await send(url, method: "GET", timeout: 20, limit: ProgressPhotoImage.jpegLimit, image: true)
+        let validator = Self.validETag(ifNoneMatch)
+        let (status, bytes, etag) = try await send(url, method: "GET", timeout: 20,
+                                                  limit: ProgressPhotoImage.jpegLimit, image: true, ifNoneMatch: validator)
+        if status == 304, validator != nil { return .notModified }
         guard status == 200, !bytes.isEmpty else { throw ProgressPhotoError.unavailable }
-        return bytes
+        return .image(bytes, etag: Self.validETag(etag))
+    }
+
+    private static func validETag(_ value: String?) -> String? {
+        guard let value, value.utf8.count <= 256 else { return nil }
+        let opaque = value.hasPrefix("W/") ? value.dropFirst(2) : value[...]
+        guard opaque.count >= 2, opaque.first == "\"", opaque.last == "\"",
+              opaque.dropFirst().dropLast().utf8.allSatisfy({ $0 == 0x21 || (0x23...0x7e).contains($0) }) else { return nil }
+        return value
     }
 
     private func fileURL(_ id: String) throws -> URL {
@@ -203,7 +221,7 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
 
     private func query<T: Decodable>(_ type: T.Type, _ query: String, _ variables: [String: Any]) async throws -> T {
         let body = try JSONSerialization.data(withJSONObject: ["query": query, "variables": variables])
-        let (status, bytes) = try await send(graphql, method: "POST", contentType: "application/json", body: body)
+        let (status, bytes, _) = try await send(graphql, method: "POST", contentType: "application/json", body: body)
         guard status == 200 else { throw ProgressPhotoError.unavailable }
         // Never pass GraphQL messages, headers or response bodies to UI or logs.
         let result = try JSONDecoder().decode(Envelope<T>.self, from: bytes)
@@ -212,7 +230,8 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
     }
 
     private func send(_ url: URL, method: String, contentType: String? = nil, body: Data? = nil,
-                      timeout: TimeInterval = 12, limit: Int = 512 * 1024, image: Bool = false) async throws -> (Int, Data) {
+                      timeout: TimeInterval = 12, limit: Int = 512 * 1024, image: Bool = false,
+                      ifNoneMatch: String? = nil) async throws -> (Int, Data, String?) {
         do {
             let token = try await bearer.token()
             var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
@@ -220,6 +239,7 @@ public struct ProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
             request.httpBody = body
             request.setValue(contentType, forHTTPHeaderField: "Content-Type")
             request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+            request.setValue(ifNoneMatch, forHTTPHeaderField: "If-None-Match")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             try await bearer.checkOwner()
             let result = try await transport.request(request, limit: limit, image: image)

@@ -104,7 +104,14 @@ public enum ProgressPhotoError: Error, Equatable, Sendable {
     case unavailable, invalidImage, inputTooLarge, dimensionsTooLarge, encodingFailed
 }
 
+public enum ProgressPhotoImageResponse: Sendable {
+    case image(Data, etag: String?)
+    case notModified
+}
+
 public protocol ProgressPhotoRepositoryProtocol: Sendable {
+    /// A fictional, read-only collection. Demo writes must be rejected by the repository too.
+    var isDemo: Bool { get }
     func angles() async throws -> [ProgressPhotoAngle]
     func summary() async throws -> ProgressPhotoSummary
     func photos(on date: String) async throws -> [ProgressPhoto]
@@ -118,6 +125,14 @@ public protocol ProgressPhotoRepositoryProtocol: Sendable {
     func update(_ id: String, fields: ProgressPhotoFields) async throws -> Bool
     func delete(_ id: String) async throws -> Bool
     func imageBytes(_ id: String, thumbnail: Bool) async throws -> Data
+    func fetchImage(_ id: String, thumbnail: Bool, ifNoneMatch: String?) async throws -> ProgressPhotoImageResponse
+}
+
+public extension ProgressPhotoRepositoryProtocol {
+    var isDemo: Bool { false }
+    func fetchImage(_ id: String, thumbnail: Bool, ifNoneMatch: String?) async throws -> ProgressPhotoImageResponse {
+        try await .image(imageBytes(id, thumbnail: thumbnail), etag: nil)
+    }
 }
 
 /// An old route can finish after dismissal or backgrounding, even if its
@@ -171,6 +186,7 @@ public struct ScopedProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
         self.scope = scope
     }
 
+    public var isDemo: Bool { base.isDemo }
     public func angles() async throws -> [ProgressPhotoAngle] { try await scope.perform { try await base.angles() } }
     public func summary() async throws -> ProgressPhotoSummary { try await scope.perform { try await base.summary() } }
     public func photos(on date: String) async throws -> [ProgressPhoto] { try await scope.perform { try await base.photos(on: date) } }
@@ -196,5 +212,8 @@ public struct ScopedProgressPhotoRepository: ProgressPhotoRepositoryProtocol {
     public func delete(_ id: String) async throws -> Bool { try await scope.perform { try await base.delete(id) } }
     public func imageBytes(_ id: String, thumbnail: Bool) async throws -> Data {
         try await scope.perform { try await base.imageBytes(id, thumbnail: thumbnail) }
+    }
+    public func fetchImage(_ id: String, thumbnail: Bool, ifNoneMatch: String?) async throws -> ProgressPhotoImageResponse {
+        try await scope.perform { try await base.fetchImage(id, thumbnail: thumbnail, ifNoneMatch: ifNoneMatch) }
     }
 }

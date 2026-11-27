@@ -63,6 +63,66 @@ final class ProgressPhotoTransportTests: XCTestCase {
         XCTAssertEqual(String(decoding: original, as: UTF8.self), "original")
     }
 
+    func testConditionalImageRetainsDecodedPixelsOn304AndEvictsOn403() async throws {
+        let repo = try imageRepository()
+        let cache = ProgressPhotoImageCache(freshness: 0)
+        let scope = ProgressPhotoRouteScope()
+        let full = ProgressPhotoImageCache.Key(id: conditionalFixtureId, thumbnail: false)
+        let thumb = ProgressPhotoImageCache.Key(id: conditionalFixtureId, thumbnail: true)
+        let original = try await cache.load(full, repository: repo, scope: scope)
+        XCTAssertEqual(original.width, 6)
+        XCTAssertTrue(cache.image(for: full) === original)
+        XCTAssertNil(cache.image(for: thumb))
+        let unchanged = try await cache.load(full, repository: repo, scope: scope)
+        XCTAssertTrue(unchanged === original, "304 must reuse the existing decoded image")
+
+        _ = try await cache.load(thumb, repository: repo, scope: scope)
+        do {
+            _ = try await cache.load(thumb, repository: repo, scope: scope)
+            XCTFail("403 must not validate the thumbnail")
+        } catch let error as ProgressPhotoError { XCTAssertEqual(error, .unavailable) }
+        XCTAssertNil(cache.image(for: thumb))
+        XCTAssertNil(cache.image(for: full), "A denied read must evict both renditions")
+    }
+
+    func testCacheBoundsAndClearingDoNotPersistAnyPhoto() async throws {
+        let repo = try imageRepository()
+        let scope = ProgressPhotoRouteScope()
+        let key = ProgressPhotoImageCache.Key(id: conditionalFixtureId, thumbnail: false)
+        let thumb = ProgressPhotoImageCache.Key(id: conditionalFixtureId, thumbnail: true)
+        let cache = ProgressPhotoImageCache()
+        let image = try await cache.load(key, repository: repo, scope: scope)
+        let bounded = ProgressPhotoImageCache(byteLimit: image.bytesPerRow * image.height)
+        _ = try await bounded.load(key, repository: repo, scope: scope)
+        _ = try await bounded.load(thumb, repository: repo, scope: scope)
+        XCTAssertNil(bounded.image(for: key))
+        XCTAssertNotNil(bounded.image(for: thumb))
+        bounded.remove(id: conditionalFixtureId)
+        XCTAssertNil(bounded.image(for: thumb))
+        cache.clear()
+        XCTAssertNil(cache.image(for: key))
+    }
+
+    func testUnsolicitedNotModifiedIsNotAccepted() async throws {
+        let repo = try imageRepository()
+        do {
+            _ = try await repo.fetchImage(unsolicitedFixtureId, thumbnail: false, ifNoneMatch: "*")
+            XCTFail("Invalid validator must never validate an unsolicited 304")
+        } catch let error as ProgressPhotoError { XCTAssertEqual(error, .unavailable) }
+    }
+
+    private func imageRepository() throws -> ProgressPhotoRepository {
+        let session = try credential(owner: "photo-owner")
+        let client = createClient(NhostClientOptions(
+            storageURL: URL(string: "https://photos.example.test/v1"),
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: session))
+        ))
+        let configuration = ProgressPhotoTransport.configuration()
+        configuration.protocolClasses = [PhotoURLProtocol.self]
+        return try XCTUnwrap(ProgressPhotoRepository(client: client, owner: "photo-owner",
+                                                        transport: ProgressPhotoTransport(configuration: configuration)))
+    }
+
     func testRefreshWaitIsCancellableWithoutAbortingRotation() async throws {
         let fixture = try PhotoRefreshFixture()
         let bearer = ProgressPhotoBearer(owner: "photo-owner", current: { await fixture.session },
@@ -103,6 +163,9 @@ final class ProgressPhotoTransportTests: XCTestCase {
 
 private enum PhotoTestError: Error { case sdkGraphQLCalled }
 
+private let conditionalFixtureId = "00000000-0000-4000-8000-000000009001"
+private let unsolicitedFixtureId = "00000000-0000-4000-8000-000000009002"
+
 private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "photos.example.test" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -116,6 +179,20 @@ private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
         }
         if request.httpMethod == "GET", url.path == "/v1/files/\(photoFixtureId)" {
             respond(url, mime: "image/jpeg", body: url.query ?? "original")
+            return
+        }
+        if request.httpMethod == "GET", url.path == "/v1/files/\(conditionalFixtureId)" {
+            let etag = url.query == nil ? "\"original-v1\"" : "W/\"thumbnail-v1\""
+            let validator = request.value(forHTTPHeaderField: "If-None-Match")
+            XCTAssertTrue(validator == nil || validator == etag, "Each rendition must send only its own validator")
+            let status = validator == etag ? (url.query == nil ? 304 : 403) : 200
+            let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAYAAAAICAIAAABVpBlvAAAAEUlEQVR4nGOYve8EGmIYDEIAUCpmMfUNqeIAAAAASUVORK5CYII=")!
+            respond(url, mime: "image/png", bytes: status == 200 ? png : Data(), status: status, etag: etag)
+            return
+        }
+        if request.httpMethod == "GET", url.path == "/v1/files/\(unsolicitedFixtureId)" {
+            XCTAssertNil(request.value(forHTTPHeaderField: "If-None-Match"))
+            respond(url, mime: "image/png", bytes: Data(), status: 304, etag: "\"unexpected\"")
             return
         }
         guard request.httpMethod == "POST" else {
@@ -183,10 +260,15 @@ private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     private func respond(_ url: URL, mime: String, body: String) {
-        let headers = ["Content-Type": mime, "Cache-Control": "public, max-age=86400"]
-        if let http = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: headers) {
+        respond(url, mime: mime, bytes: Data(body.utf8), status: 200, etag: nil)
+    }
+
+    private func respond(_ url: URL, mime: String, bytes: Data, status: Int, etag: String?) {
+        var headers = ["Content-Type": mime, "Cache-Control": "public, max-age=86400"]
+        headers["ETag"] = etag
+        if let http = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers) {
             client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .allowed)
-            client?.urlProtocol(self, didLoad: Data(body.utf8))
+            if !bytes.isEmpty { client?.urlProtocol(self, didLoad: bytes) }
             client?.urlProtocolDidFinishLoading(self)
         }
     }

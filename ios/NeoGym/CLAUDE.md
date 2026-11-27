@@ -29,7 +29,10 @@ and rest timers use the `io.nhost.neogym.demo` suite, not standard defaults.
 Demo has no Health importers, Watch activation/PAT/hints, MCP, notification or
 Live Activity effects; all phone Energy widget saves/reloads must use the
 `energyWidgetUpdates` environment boundary, disabled in demo. Bundled demo
-illustrations never reach AsyncImage. Demo injects no progress-photo repository or Body photo shortcut. Entering demo calls `AuthStore.retire()`
+illustrations never reach AsyncImage. Demo progress photos use a separate
+read-only repository with bundled illustrations for the Body card, gallery,
+viewer and Compare; the demo never constructs PhotosPicker or offers photo
+writes. Entering demo calls `AuthStore.retire()`
 to stop live observation/late callbacks without clearing credentials; Exit creates
 a new live runtime. Reset/exit invalidate demo stores and timers so late callbacks
 are inert. Keep the visible fictional-data banner, Reset and Exit.
@@ -503,15 +506,20 @@ changes.
   owner-bound repository is injected alongside the ordinary repositories; it
   uses the same managed session store and SDK refresh transaction, but sends
   photo GraphQL and Storage through an ephemeral, no-redirect transport.
-  The Body summary card and the selected tab's top photo route keep private
-  data in their own scopes. Pass the tab and path bindings through the
-  destination boundary; a value snapshot can remain stale after a push. An
-  early scene-inactive cover hides the active surface without detaching its
-  PhotosPicker; backgrounding retires the scope and drops create/edit drafts.
-  The gallery appends cursor pages into date cards and keeps only the angle
-  filter across pushes. Same-angle viewer steps replace the top route;
-  completing a multi-angle check-in or deleting opens the gallery in one
-  path update. Compare uses a native slider and reads only the selected dates
+  The Body summary card and top photo route scope their metadata and requests;
+  only the bounded, per-account foreground image cache survives between
+  surfaces. Thumbnail/original ETags are separate, 304s reuse decoded pixels,
+  and failed validations evict the photo. Never store private photo pixels or
+  validators on disk. Sign-out, backgrounding and memory warnings clear the
+  cache. An early scene-inactive cover hides the active surface without
+  detaching its PhotosPicker; backgrounding retires the scope and drops
+  create/edit drafts. Older/Newer step in place below a fixed-size image
+  frame. Only the control-free full-screen cover handles horizontal photo steps
+  and vertical dismissal; it starts with the detail's known photo and history
+  and has its own privacy scope. It closes on backgrounding, and explicit
+  dismissal returns to the selected photo without altering Back history. Completing a
+  multi-angle check-in or deleting opens the gallery in one path update.
+  Compare uses a native slider and reads only the selected dates
   and their measurement lookbacks. Photo writes never invalidate Body or
   WidgetKit. See
   [`progress-photos.md`](../../docs/developers/progress-photos.md) for the retry

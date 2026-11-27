@@ -32,13 +32,14 @@ final class ProgressPhotoTransport: Sendable {
 
     var sdkTransport: URLSessionTransport { URLSessionTransport(session: session) }
 
-    func request(_ request: URLRequest, limit: Int, image: Bool = false) async throws -> (Int, Data) {
+    func request(_ request: URLRequest, limit: Int, image: Bool = false) async throws -> (Int, Data, String?) {
         let (stream, response) = try await session.bytes(for: request)
         defer { stream.task.cancel() }
         guard let http = response as? HTTPURLResponse, http.url == request.url else {
             throw ProgressPhotoError.unavailable
         }
-        guard (200..<300).contains(http.statusCode) else { return (http.statusCode, Data()) }
+        let etag = image ? http.value(forHTTPHeaderField: "ETag") : nil
+        guard (200..<300).contains(http.statusCode) else { return (http.statusCode, Data(), etag) }
         guard response.expectedContentLength <= Int64(limit),
               !image || ["image/jpeg", "image/png", "image/webp"].contains(response.mimeType?.lowercased() ?? "") else {
             throw ProgressPhotoError.unavailable
@@ -49,7 +50,7 @@ final class ProgressPhotoTransport: Sendable {
             body.append(byte)
         }
         try Task.checkCancellation()
-        return (http.statusCode, body)
+        return (http.statusCode, body, etag)
     }
 }
 

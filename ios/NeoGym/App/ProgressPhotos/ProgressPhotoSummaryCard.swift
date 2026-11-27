@@ -16,6 +16,9 @@ struct ProgressPhotoSummaryCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Progress photos", systemImage: "photo.on.rectangle.angled")
                 .font(.headline).accessibilityAddTraits(.isHeader)
+            if repository.isDemo {
+                Text("Fictional sample photos · Read-only").foregroundStyle(NeoGymTheme.textSecondary)
+            }
             if let summary {
                 let count = summary.count == 1 ? "1 photo" : "\(summary.count) photos"
                 if summary.count == 0 {
@@ -51,10 +54,12 @@ struct ProgressPhotoSummaryCard: View {
                 NavigationLink("View all", value: ProgressRoute.progressPhotoGallery)
                     .accessibilityLabel("View all progress photos")
                     .accessibilityIdentifier("progressPhotos.open")
-                NavigationLink(value: ProgressRoute.progressPhotoCreate(date: nil, angle: nil)) {
-                    Label("Add photos", systemImage: "plus")
+                if !repository.isDemo {
+                    NavigationLink(value: ProgressRoute.progressPhotoCreate(date: nil, angle: nil)) {
+                        Label("Add photos", systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("progressPhotos.addFromBody")
                 }
-                .accessibilityIdentifier("progressPhotos.addFromBody")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -118,11 +123,19 @@ struct PhotoAngleChips: View {
 struct PhotoMeasurementCaption: View {
     let measurement: BodyMeasurement?
     let date: String
+    var reservesSpace = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        if let values = Self.text(measurement) {
+        let values = Self.text(measurement)
+        if reservesSpace || values != nil {
             VStack(alignment: .leading, spacing: 2) {
-                Text(values).monospacedDigit()
+                if reservesSpace {
+                    Text(values ?? "—").monospacedDigit()
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1, reservesSpace: true)
+                } else if let values {
+                    Text(values).monospacedDigit()
+                }
                 if let measuredOn = measurement?.measuredOn, measuredOn != date {
                     Text("Measured \(ProgressPhotoDate.display(measuredOn))").font(.caption2)
                 }

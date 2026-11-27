@@ -89,14 +89,19 @@ private struct PhotoSnapshotCover: UIViewRepresentable {
     let onBackground: () -> Void
 
     func makeUIView(context: Context) -> Cover { Cover() }
-    func updateUIView(_ view: Cover, context: Context) { view.onBackground = onBackground }
+    func updateUIView(_ view: Cover, context: Context) {
+        view.onBackground = onBackground
+        view.attachToCurrentScene()
+    }
 
     final class Cover: UIView {
         var onBackground: (() -> Void)?
+        private weak var attachedScene: UIWindowScene?
 
         init() {
             super.init(frame: .zero)
             backgroundColor = UIColor(NeoGymTheme.background)
+            isHidden = true
             isUserInteractionEnabled = false
             isAccessibilityElement = false
             let notes = NotificationCenter.default
@@ -109,7 +114,17 @@ private struct PhotoSnapshotCover: UIViewRepresentable {
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
-            isHidden = window?.windowScene?.activationState == .foregroundActive
+            attachToCurrentScene()
+        }
+
+        func attachToCurrentScene() {
+            guard let scene = window?.windowScene else {
+                attachedScene = nil
+                return
+            }
+            guard attachedScene !== scene else { return }
+            attachedScene = scene
+            isHidden = scene.activationState == .foregroundActive
         }
 
         @objc private func deactivating(_ note: Notification) {
