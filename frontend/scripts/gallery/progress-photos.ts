@@ -139,10 +139,10 @@ async function walkthrough(guide: GalleryDriver, backend: CaptureBackend, today:
   await guide.open("/progress/body", "Progress");
   guide.step("Open the photo summary card on Body and go to the empty history");
   const summary = page.getByRole("region", { name: "Progress photos", exact: true });
-  await expect(summary.getByText("0 photos", { exact: true })).toBeVisible();
+  await expect(summary.getByText("No photos yet", { exact: true })).toBeVisible();
   await summary.getByRole("link", { name: "View progress photos" }).click();
   await expect(gallery).toBeVisible();
-  await expect(page.getByText("No progress photos", { exact: true })).toBeVisible();
+  await expect(page.getByText("No progress photos yet", { exact: true })).toBeVisible();
   await guide.shot("empty", "Progress photos: empty private history and the Add photo action");
 
   guide.step("Choose a synthetic PNG, select Front A, backdate it and upload");

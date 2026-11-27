@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 import { ErrorState } from "@/components/patterns/query-states";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ProgressPhotoLabel_Enum } from "@/gql/graphql";
-import { listLabels, type PhotoLabel } from "@/lib/progress-photos/api";
-import { usePhotoScope } from "./photo-boundary";
+import { listLabels, type PhotoLabel, photoKeys } from "@/lib/progress-photos/api";
+import { usePhotoOwner } from "./photo-session";
 
 export function photoLabelName(label: PhotoLabel) {
   return label.comment?.trim() || label.value;
@@ -20,11 +20,45 @@ export function catalogLabelValue(value: string, labels: PhotoLabel[] | undefine
 }
 
 export function usePhotoLabels() {
-  const scope = usePhotoScope();
+  const owner = usePhotoOwner();
   return useQuery({
-    queryKey: ["photo-labels", scope.owner],
-    queryFn: ({ signal }) => listLabels(scope, signal),
+    queryKey: photoKeys.labels(owner),
+    queryFn: ({ signal }) => listLabels(signal),
+    // The admin-managed catalog rarely changes; reuse it across photo screens.
+    staleTime: 5 * 60_000,
   });
+}
+
+/**
+ * Renders `children` with the loaded label catalog, a field placeholder while it
+ * loads, or an error with Retry.
+ */
+export function PhotoLabelsState({
+  labels,
+  children,
+}: {
+  labels: ReturnType<typeof usePhotoLabels>;
+  children: (catalog: PhotoLabel[]) => ReactNode;
+}) {
+  if (labels.data) {
+    return children(labels.data);
+  }
+  if (labels.isError) {
+    return (
+      <ErrorState
+        title="Couldn't load photo labels"
+        message={labels.error.message}
+        onRetry={() => void labels.refetch()}
+        isRetrying={labels.isFetching}
+      />
+    );
+  }
+  return (
+    <div className="space-y-2" aria-hidden="true">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-11 w-full rounded-md" />
+    </div>
+  );
 }
 
 export function PhotoLabelSelect({
@@ -103,18 +137,5 @@ export function PhotoDateInput({
         required
       />
     </div>
-  );
-}
-
-export function PhotoLoadError({ title, retry }: { title: string; retry: () => void }) {
-  return (
-    <ErrorState
-      title={title}
-      message={
-        <Button type="button" variant="outline" onClick={retry}>
-          Retry
-        </Button>
-      }
-    />
   );
 }

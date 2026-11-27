@@ -111,6 +111,10 @@ mock.module("@/lib/graphql", () => ({
             notes: null,
           })),
         });
+      case "ProgressPhotoSummary":
+        return Promise.resolve({
+          progressPhotosAggregate: { aggregate: { count: 0, max: { takenOn: null } } },
+        });
       default:
         throw new Error("Unexpected operation");
     }

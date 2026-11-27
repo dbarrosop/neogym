@@ -3,38 +3,50 @@ import { Link } from "@tanstack/react-router";
 import { Images } from "lucide-react";
 import { useId } from "react";
 import { Button } from "@/components/ui/button";
-import { readPhotoSummary } from "@/lib/progress-photos/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { photoKeys, readPhotoSummary } from "@/lib/progress-photos/api";
 import { photoDateLabel } from "@/lib/progress-photos/date";
-import { PrivatePhotos, usePhotoScope } from "./photo-boundary";
+import { usePhotoOwner } from "./photo-session";
 
 function PhotoSummaryStats() {
-  const scope = usePhotoScope();
+  const owner = usePhotoOwner();
   const query = useQuery({
-    queryKey: ["photo-summary", scope.owner],
-    queryFn: ({ signal }) => readPhotoSummary(scope, signal),
+    queryKey: photoKeys.summary(owner),
+    queryFn: ({ signal }) => readPhotoSummary(owner, signal),
   });
   const summary = query.data;
+  if (!summary) {
+    return query.isError ? (
+      <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+        Couldn't load your photos.
+        <button
+          type="button"
+          className="min-h-11 text-link underline-offset-4 hover:underline disabled:opacity-60"
+          disabled={query.isFetching}
+          onClick={() => void query.refetch()}
+        >
+          Retry
+        </button>
+      </p>
+    ) : (
+      <Skeleton aria-hidden="true" className="h-5 w-40" />
+    );
+  }
+  if (summary.count === 0) {
+    return <p className="text-sm text-muted-foreground">No photos yet</p>;
+  }
   return (
-    <div className="text-sm text-muted-foreground" role="status">
-      {summary ? (
-        <p className="flex flex-wrap gap-x-3 gap-y-0.5 tabular-nums">
-          <span>
-            <strong className="font-semibold text-foreground">{summary.count}</strong>{" "}
-            {summary.count === 1 ? "photo" : "photos"}
-          </span>
-          {summary.latestDate ? (
-            <span>
-              Last taken{" "}
-              <time dateTime={summary.latestDate}>{photoDateLabel(summary.latestDate)}</time>
-            </span>
-          ) : (
-            <span>No photos taken yet</span>
-          )}
-        </p>
-      ) : (
-        <p>{query.isPending ? "Loading photo summary…" : "Photo summary unavailable"}</p>
-      )}
-    </div>
+    <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground tabular-nums">
+      <span>
+        <strong className="font-semibold text-foreground">{summary.count}</strong>{" "}
+        {summary.count === 1 ? "photo" : "photos"}
+      </span>
+      {summary.latestDate ? (
+        <span>
+          Last taken <time dateTime={summary.latestDate}>{photoDateLabel(summary.latestDate)}</time>
+        </span>
+      ) : null}
+    </p>
   );
 }
 
@@ -53,9 +65,7 @@ export function PhotoSummaryCard() {
           <h2 id={titleId} className="text-base font-semibold">
             Progress photos
           </h2>
-          <PrivatePhotos>
-            <PhotoSummaryStats />
-          </PrivatePhotos>
+          <PhotoSummaryStats />
         </div>
       </div>
       <Button asChild variant="outline" className="min-h-11">

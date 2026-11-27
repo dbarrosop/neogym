@@ -7,7 +7,6 @@ import {
   OUTPUT_EDGE,
 } from "./image-headers";
 import { stripJpegMetadata } from "./jpeg";
-import type { PhotoScope } from "./scope";
 
 function readSource(source: File, signal: AbortSignal) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -27,49 +26,55 @@ function readSource(source: File, signal: AbortSignal) {
   });
 }
 
-export async function preparePhoto(scope: PhotoScope, source: File, signal: AbortSignal) {
-  scope.assertActive(signal);
+/**
+ * Decode a chosen still (orientation applied by the browser) and re-encode it as a
+ * bounded JPEG without the source's metadata. Everything stays in this page's memory.
+ */
+export async function preparePhoto(source: File, signal: AbortSignal) {
+  signal.throwIfAborted();
   if (source.size === 0 || source.size > INPUT_BYTE_LIMIT) {
-    throw new Error("Choose a nonempty photo up to 25 MiB.");
+    throw new Error("Choose a photo up to 25 MB.");
   }
   const bytes = await readSource(source, signal);
-  scope.assertActive(signal);
+  signal.throwIfAborted();
   let type: ReturnType<typeof inspectImage>;
   try {
     type = inspectImage(bytes);
   } catch (error) {
     if (error instanceof RangeError) {
-      throw new Error("The image header is incomplete or invalid.");
+      throw new Error("This file looks damaged. Choose another photo.");
     }
     throw error;
   }
-  const url = scope.objectURL(new Blob([bytes], { type }));
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
   const image = new Image();
+  let released = false;
   const release = () => {
-    image.removeAttribute("src");
-    scope.releaseURL(url);
+    if (!released) {
+      released = true;
+      image.removeAttribute("src");
+      URL.revokeObjectURL(url);
+    }
   };
   signal.addEventListener("abort", release, { once: true });
   try {
     image.src = url;
     await image.decode().catch(() => {
-      scope.assertActive(signal);
+      signal.throwIfAborted();
       if (type === "image/heic") {
-        throw new Error(
-          "This browser can't open this HEIC photo. Choose or export a JPEG or PNG instead.",
-        );
+        throw new Error("This browser can't open HEIC photos. Export it as a JPEG or PNG first.");
       }
-      throw new Error("This browser couldn't open the photo. Choose a valid JPEG or PNG.");
+      throw new Error("Couldn't open this photo. Choose a JPEG or PNG.");
     });
-    scope.assertActive(signal);
-    return await encodePhoto(image, scope, signal);
+    signal.throwIfAborted();
+    return await encodePhoto(image, signal);
   } finally {
     signal.removeEventListener("abort", release);
     release();
   }
 }
 
-async function encodePhoto(image: HTMLImageElement, scope: PhotoScope, signal: AbortSignal) {
+async function encodePhoto(image: HTMLImageElement, signal: AbortSignal) {
   // The browser's image decoder applies source orientation before drawImage.
   const width = image.naturalWidth;
   const height = image.naturalHeight;
@@ -92,11 +97,11 @@ async function encodePhoto(image: HTMLImageElement, scope: PhotoScope, signal: A
       const jpeg = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", quality),
       );
-      scope.assertActive(signal);
+      signal.throwIfAborted();
       if (jpeg?.type === "image/jpeg" && jpeg.size > 0 && jpeg.size <= JPEG_LIMIT) {
         const encoded = await jpeg.arrayBuffer();
         const view = new DataView(encoded);
-        scope.assertActive(signal);
+        signal.throwIfAborted();
         if (view.getUint16(0) === 0xffd8) {
           const size = jpegDimensions(view);
           if (size.width === canvas.width && size.height === canvas.height) {
@@ -105,7 +110,7 @@ async function encodePhoto(image: HTMLImageElement, scope: PhotoScope, signal: A
         }
       }
     }
-    throw new Error("Couldn't make a JPEG under 5 MiB. Try a smaller photo.");
+    throw new Error("This photo is too detailed to upload. Choose a smaller one.");
   } finally {
     canvas.width = 0;
     canvas.height = 0;

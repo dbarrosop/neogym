@@ -1,9 +1,10 @@
-// Isolated process: the real photo components run with scripted route and API boundaries.
+// Isolated process: the real photo routes run against a scripted GraphQL/Storage network
+// through the real Nhost SDK client, with the app's query cache defaults.
 import { mock } from "bun:test";
 import assert from "node:assert/strict";
 import { getOperationAST, parse } from "graphql";
 import { Window } from "happy-dom";
-import { act, type ReactNode } from "react";
+import { act, type ReactNode, useSyncExternalStore } from "react";
 
 const dom = new Window({ url: "http://localhost" });
 const window = dom as unknown as typeof globalThis.window;
@@ -11,6 +12,7 @@ Object.assign(globalThis, {
   window,
   document: window.document,
   navigator: window.navigator,
+  localStorage: window.localStorage,
   HTMLElement: window.HTMLElement,
   HTMLInputElement: window.HTMLInputElement,
   Event: window.Event,
@@ -27,34 +29,47 @@ function visibility(hidden: boolean) {
   document.dispatchEvent(new window.Event("visibilitychange"));
 }
 visibility(false);
-let beforeExclusive: (() => Promise<void>) | undefined;
-let afterExclusive: (() => void) | undefined;
 Object.defineProperty(navigator, "locks", {
-  value: {
-    async request(_name: string, { mode }: LockOptions, run: () => Promise<unknown>) {
-      if (mode !== "exclusive") {
-        return run();
-      }
-      await beforeExclusive?.();
-      try {
-        return await run();
-      } finally {
-        afterExclusive?.();
-      }
-    },
-  },
+  value: { request: (_name: string, _options: LockOptions, run: () => unknown) => run() },
 });
+
+// --- Router and auth stand-ins -------------------------------------------------------
 const id = "558e5143-0f20-4014-970e-50ed9e0a32a8";
 let pathname = "/progress/body/photos";
 let outlet: ReactNode;
-let owner: string | undefined = "alice";
-const navigations: unknown[] = [];
+type Navigation = { to?: string; params?: unknown; replace?: boolean; search?: unknown };
+const navigations: Navigation[] = [];
+const searchChanges: Navigation[] = [];
+let search: Record<string, unknown> = {};
+const searchListeners = new Set<() => void>();
+function setSearch(next: Record<string, unknown>) {
+  search = Object.fromEntries(Object.entries(next).filter(([, value]) => value !== undefined));
+  for (const listener of searchListeners) {
+    listener();
+  }
+}
+function subscribeSearch(listener: () => void) {
+  searchListeners.add(listener);
+  return () => searchListeners.delete(listener);
+}
 mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({
     options,
     useParams: () => ({ photoId: id }),
-    useSearch: () => ({}),
-    useNavigate: () => (value: unknown) => navigations.push(value),
+    useSearch: () => useSyncExternalStore(subscribeSearch, () => search),
+    useNavigate: () => (value: Navigation) => {
+      if (value.to === undefined && value.search !== undefined) {
+        searchChanges.push(value);
+        setSearch(
+          typeof value.search === "function"
+            ? (value.search as (prev: typeof search) => typeof search)(search)
+            : (value.search as typeof search),
+        );
+      } else {
+        navigations.push(value);
+      }
+      return Promise.resolve();
+    },
   }),
   useRouterState: ({ select }: { select: (value: unknown) => unknown }) =>
     select({ location: { pathname } }),
@@ -84,16 +99,18 @@ mock.module("@tanstack/react-router", () => ({
     </a>
   ),
 }));
-const { createClient } = await import("@nhost/nhost-js");
-const client = createClient({ subdomain: "local", region: "local" });
+let auth: { user: { id: string } | null; isAuthenticated: boolean } = {
+  user: null,
+  isAuthenticated: false,
+};
+const authListeners = new Set<() => void>();
+function subscribeAuth(listener: () => void) {
+  authListeners.add(listener);
+  return () => authListeners.delete(listener);
+}
 mock.module("@/lib/nhost/auth-provider", () => ({
-  useAuth: () => ({
-    nhost: client,
-    user: owner ? { id: owner } : null,
-    isAuthenticated: Boolean(owner),
-  }),
+  useAuth: () => useSyncExternalStore(subscribeAuth, () => auth),
 }));
-mock.module("@/lib/graphql", () => ({ gqlRequest: () => new Promise(() => undefined) }));
 mock.module("@/components/progress/quick-entry-forms", () => ({
   QuickBodyMeasurementForm: () => null,
 }));
@@ -101,26 +118,14 @@ mock.module("@/lib/progress-photos/prepare", () => ({
   preparePhoto: () => Promise.resolve(new Blob(["prepared fixture"], { type: "image/jpeg" })),
 }));
 
-const BASE64_PADDING = /=+$/;
-function session(name: string, refreshToken: string, expiresIn: number) {
-  const token = `e30.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + expiresIn, sub: name })).replace(BASE64_PADDING, "")}.fake`;
-  return {
-    accessToken: token,
-    accessTokenExpiresIn: expiresIn,
-    refreshToken,
-    refreshTokenId: name,
-    user: { id: name },
-  } as Parameters<typeof client.sessionStorage.set>[0];
-}
-function signIn(name: string, refreshToken = `fixture-${name}`, expiresIn = 3600) {
-  client.sessionStorage.set(session(name, refreshToken, expiresIn));
-}
 const revoked: string[] = [];
 let allocated = 0;
 URL.createObjectURL = () => `blob:http://localhost/test-${++allocated}`;
 URL.revokeObjectURL = (url) => {
   revoked.push(url);
 };
+
+// --- Scripted backend ---------------------------------------------------------------
 const photo = {
   id,
   takenOn: "2001-02-03",
@@ -140,14 +145,16 @@ let lastFilter: string | undefined;
 let fileHeld: ReturnType<typeof Promise.withResolvers<Response>> | undefined;
 let uploadHeld: ReturnType<typeof Promise.withResolvers<Response>> | undefined;
 const uploadedIds: string[] = [];
+let lastUpload: { bucket: unknown; name: string; type: string } | undefined;
 let reservations = 0;
 let uploadSignal: AbortSignal | null | undefined;
 let checkingUpload = false;
-let authEndpoint: ((init: RequestInit) => Promise<Response>) | undefined;
 let mutationMode: "save" | "delete" = "save";
 let tookDelete = false;
-let requests = 0;
+const operations: string[] = [];
+const imageRequests: string[] = [];
 let imageSignal: AbortSignal | null | undefined;
+
 function json(data: unknown) {
   return Response.json({ data });
 }
@@ -157,7 +164,7 @@ function historyResponse(where: {
   labelValue?: { _eq: string };
   _or?: unknown[];
 }) {
-  assert.equal(where.userId._eq, client.getUserSession()?.user?.id);
+  assert.equal(where.userId._eq, auth.user?.id);
   assert.deepEqual(where.file, { isUploaded: { _eq: true } });
   if (listFails) {
     return new Response(null, { status: 500 });
@@ -186,95 +193,121 @@ function historyResponse(where: {
     ],
   });
 }
-globalThis.fetch = ((url: string, init: RequestInit) => {
-  if (url.endsWith("/token")) {
-    assert(authEndpoint, "Unexpected Auth refresh");
-    assert.equal(init.signal, undefined, "Photo cancellation must not reach Auth");
-    return authEndpoint(init);
-  }
-  requests++;
-  assert.equal(init.cache, "no-store");
-  assert.equal(init.credentials, "omit");
-  assert.equal(init.redirect, "error");
-  assert.equal(init.referrerPolicy, "no-referrer");
-  assert.equal(
-    new Headers(init.headers).get("Authorization"),
-    `Bearer ${client.getUserSession()?.accessToken}`,
-  );
-  assert(client.getUserSession()?.user);
+
+// The SDK captures `fetch` when the client is created, so install this before importing it.
+let currentToken: () => string | undefined = () => undefined;
+function assertPhotoRequest(init: RequestInit) {
+  assert.equal(init.cache, "no-store", "photo traffic bypasses the HTTP cache");
+  assert.equal(new Headers(init.headers).get("Authorization"), `Bearer ${currentToken()}`);
+}
+function storageResponse(url: string, init: RequestInit): Promise<Response> {
+  assertPhotoRequest(init);
   if (url.endsWith("/files") && init.method === "POST") {
     assert(init.body instanceof FormData);
     const metadata = init.body.get("metadata[]");
-    assert(metadata instanceof Blob);
+    const file = init.body.get("file[]");
+    assert(metadata instanceof Blob && file instanceof File);
+    lastUpload = { bucket: init.body.get("bucket-id"), name: file.name, type: file.type };
     uploadSignal = init.signal;
-    // Count synchronous issuance separately from reading the multipart bytes.
     const held = uploadHeld;
     return metadata.text().then((text) => {
       uploadedIds.push(JSON.parse(text).id);
       return held?.promise ?? Response.json({ processedFiles: [{ id, isUploaded: true }] });
     });
   }
-  if (url.includes("/files/")) {
-    if (init.method === "DELETE") {
-      tookDelete = true;
-      return Promise.reject(new Error("response lost"));
-    }
-    imageSignal = init.signal;
-    return (
-      fileHeld?.promise ??
-      Promise.resolve(
-        new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/jpeg" } }),
-      )
-    );
+  if (init.method === "DELETE") {
+    tookDelete = true;
+    return Promise.reject(new Error("response lost"));
   }
+  imageRequests.push(url);
+  imageSignal = init.signal;
+  return (
+    fileHeld?.promise ??
+    Promise.resolve(
+      new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/jpeg" } }),
+    )
+  );
+}
+function graphqlResponse(init: RequestInit): Response {
   const { query, variables } = JSON.parse(String(init.body));
-  const operation = getOperationAST(parse(query))?.name?.value;
+  const operation = getOperationAST(parse(query))?.name?.value ?? "";
+  if (operation === "BodyMeasurements") {
+    return json({ bodyMeasurements: [] });
+  }
+  assertPhotoRequest(init);
+  operations.push(operation);
   switch (operation) {
     case "ProgressPhotoLabels":
-      return Promise.resolve(
-        json({ progressPhotoLabels: [photo.label, { value: "back_b", comment: "Back B" }, side] }),
-      );
+      return json({
+        progressPhotoLabels: [photo.label, { value: "back_b", comment: "Back B" }, side],
+      });
     case "ProgressPhotoSummary": {
-      const currentOwner = client.getUserSession()?.user?.id;
       assert.deepEqual(variables.where, {
-        userId: { _eq: currentOwner },
+        userId: { _eq: auth.user?.id },
         file: { isUploaded: { _eq: true } },
       });
-      const alice = currentOwner === "alice";
-      return Promise.resolve(
-        json({
-          progressPhotosAggregate: {
-            aggregate: { count: alice ? 17 : 0, max: { takenOn: alice ? photo.takenOn : null } },
-          },
-        }),
-      );
+      const alice = auth.user?.id === "alice";
+      return json({
+        progressPhotosAggregate: {
+          aggregate: { count: alice ? 17 : 0, max: { takenOn: alice ? photo.takenOn : null } },
+        },
+      });
     }
     case "ProgressPhotoHistory":
-      return Promise.resolve(historyResponse(variables.where));
+      return historyResponse(variables.where);
     case "ProgressPhotoDetails":
-      return Promise.resolve(
-        json({
-          progressPhoto: tookDelete ? null : { ...photo, file: checkingUpload ? null : photo.file },
-        }),
-      );
+      return json({
+        progressPhoto: tookDelete ? null : { ...photo, file: checkingUpload ? null : photo.file },
+      });
     case "ReserveProgressPhoto":
       assert.equal(variables.label, "side");
       reservations++;
-      return Promise.resolve(json({ insertProgressPhoto: { id } }));
-    case "UpdateProgressPhoto": {
+      return json({ insertProgressPhoto: { id } });
+    case "UpdateProgressPhoto":
       assert.equal(mutationMode, "save");
       assert.deepEqual(variables, { id, label: "side", date: "2001-02-03" });
-      return Promise.resolve(json({ updateProgressPhoto: { id } }));
-    }
+      return json({ updateProgressPhoto: { id } });
     default:
       throw new Error(`Unexpected operation ${operation}`);
   }
+}
+globalThis.fetch = ((input: string | URL, init: RequestInit = {}) => {
+  const url = String(input);
+  assert(!url.endsWith("/token"), "the fixture session never needs an Auth refresh");
+  if (url.includes("storage")) {
+    return storageResponse(url, init);
+  }
+  return Promise.resolve(graphqlResponse(init));
 }) as typeof fetch;
 
+const { nhost } = await import("@/lib/nhost/client");
+currentToken = () => nhost.getUserSession()?.accessToken;
+const BASE64_PADDING = /=+$/;
+function setOwner(name: string | null) {
+  if (name) {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const payload = btoa(JSON.stringify({ exp, sub: name })).replace(BASE64_PADDING, "");
+    nhost.sessionStorage.set({
+      accessToken: `e30.${payload}.fake`,
+      accessTokenExpiresIn: 3600,
+      refreshToken: `fixture-${name}`,
+      refreshTokenId: name,
+      user: { id: name },
+    } as Parameters<typeof nhost.sessionStorage.set>[0]);
+  } else {
+    nhost.clearSession();
+  }
+  auth = { user: name ? { id: name } : null, isAuthenticated: Boolean(name) };
+  for (const listener of authListeners) {
+    listener();
+  }
+}
+
+// --- Rendering helpers --------------------------------------------------------------
 const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
-const { photoFetch } = await import("@/lib/progress-photos/api");
-const { PhotoScope } = await import("@/lib/progress-photos/scope");
+const { photoKeys } = await import("@/lib/progress-photos/api");
+const { PhotoCacheGuard } = await import("@/components/progress-photos/photo-session");
 const { __testing } = await import("@/components/breadcrumbs");
 const { Route: Body } = await import("@/routes/_authed/progress/body");
 const { Route: PhotoLayout } = await import("@/routes/_authed/progress/body/photos");
@@ -285,27 +318,32 @@ const { Route: Viewer } = await import("@/routes/_authed/progress/body/photos/$p
 const mount = document.createElement("div");
 document.body.append(mount);
 const root = createRoot(mount);
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+// The app's defaults (router.tsx), so cache reuse across routes is exercised as shipped.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: false } },
+});
 function view(route: { options: { component?: unknown } }) {
   const Component = route.options.component as () => ReactNode;
   return <Component />;
 }
-async function renderPage(path: string, route: Parameters<typeof view>[0]) {
+async function renderPage(path: string, route: Parameters<typeof view>[0], keepSearch = false) {
   pathname = path;
   outlet = view(route);
+  if (!keepSearch) {
+    search = {};
+  }
   await act(() => {
     root.render(
-      path === "/progress/body" ? (
-        <QueryClientProvider client={queryClient}>{outlet}</QueryClientProvider>
-      ) : (
-        view(PhotoLayout)
-      ),
+      <QueryClientProvider client={queryClient}>
+        <PhotoCacheGuard />
+        {path === "/progress/body" ? outlet : view(PhotoLayout)}
+      </QueryClientProvider>,
     );
   });
 }
 async function settled(assertion: () => void) {
   let error: unknown;
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     try {
       assertion();
       return;
@@ -324,150 +362,72 @@ function exactText(text: string, tag = "button") {
   assert(element, `Couldn't find ${text}`);
   return element;
 }
-
-function holdRefresh(expiresIn = 30) {
-  signIn("alice", "before-refresh", expiresIn);
-  const issued = Promise.withResolvers<void>();
-  const response = Promise.withResolvers<Response>();
-  const done = Promise.withResolvers<void>();
-  afterExclusive = done.resolve;
-  let calls = 0;
-  const invalid = () => Response.json({ error: "invalid-refresh-token" }, { status: 401 });
-  authEndpoint = (init) => {
-    assert.deepEqual(JSON.parse(String(init.body)), { refreshToken: "before-refresh" });
-    calls++;
-    issued.resolve();
-    return calls === 1 ? response.promise : Promise.resolve(invalid());
-  };
-  return {
-    issued: issued.promise,
-    done: done.promise,
-    respond: () => response.resolve(Response.json(session("alice", "rotated", 3600))),
-    reject: () => response.resolve(invalid()),
-    calls: () => calls,
-  };
-}
-
-async function verifyIssuedRefresh(
-  reason: "close" | "hide" | "timeout",
-  expected: string | null = "rotated",
-  replaceSession?: () => void,
-) {
-  const refresh = holdRefresh();
-  const scope = new PhotoScope(client, "alice", () => undefined);
-  const caller = new AbortController();
-  const result = photoFetch(scope, client.graphql.url, {}, caller.signal, 9000);
-  const rejected = assert.rejects(result, {
-    name: reason === "timeout" ? "TimeoutError" : "AbortError",
-  });
-  await refresh.issued;
-  if (reason === "hide") {
-    visibility(true);
-  } else {
-    if (reason === "timeout") {
-      caller.abort(new DOMException("Photo timeout", "TimeoutError"));
-    } else {
-      scope.close();
-    }
-    // Auth is still held: closing the scope or timing out releases only the caller.
-    await rejected;
-  }
-  replaceSession?.();
-  refresh.respond();
-  await refresh.done;
-  await rejected;
-  assert.equal(client.getUserSession()?.refreshToken ?? null, expected);
-  assert.equal(requests, 0, "a cancelled refresh wait must not issue photo traffic");
-  visibility(false);
-}
-
-async function verifyRefreshLineage() {
-  const locked = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  beforeExclusive = () => {
-    locked.resolve();
-    return release.promise;
-  };
-  const refresh = holdRefresh(-30);
-  const scope = new PhotoScope(client, "alice", () => undefined);
-  const token = scope.accessToken(scope.signal);
-  await locked.promise;
-  signIn("alice", "replacement-under-lock");
-  release.resolve();
-  assert.equal(await token, client.getUserSession()?.accessToken);
-  assert.equal(refresh.calls(), 0, "the old lock waiter must not refresh a new sign-in");
-  beforeExclusive = undefined;
-
-  const invalid = holdRefresh(-30);
-  const old = new PhotoScope(client, "alice", () => undefined);
-  const outcome = old.accessToken(old.signal);
-  await invalid.issued;
-  signIn("alice", "replacement-before-retry", -30);
-  const failed = assert.rejects(outcome, { message: "A current sign-in is required." });
-  invalid.reject();
-  await failed;
-  assert.equal(invalid.calls(), 1, "the retry must not use the replacement credential");
-  assert.equal(client.getUserSession()?.refreshToken, "replacement-before-retry");
-
-  const expired = holdRefresh(-30);
-  const closing = new PhotoScope(client, "alice", () => undefined);
-  const cancelled = assert.rejects(closing.accessToken(closing.signal), { name: "AbortError" });
-  await expired.issued;
-  closing.close();
-  await cancelled;
-  expired.reject();
-  await settled(() => assert.equal(client.getUserSession(), null));
-  assert.equal(expired.calls(), 2, "the SDK still clears the same expired credential after retry");
-  authEndpoint = undefined;
-  afterExclusive = undefined;
-}
-
-await verifyIssuedRefresh("close");
-await verifyIssuedRefresh("hide");
-await verifyIssuedRefresh("timeout");
-await verifyIssuedRefresh("close", null, () => client.clearSession());
-await verifyIssuedRefresh("close", "fixture-bob", () => signIn("bob"));
-await verifyIssuedRefresh("close", "fresh-sign-in", () => signIn("alice", "fresh-sign-in"));
-await verifyRefreshLineage();
-signIn("alice");
-await renderPage("/progress/body", Body);
-const summary = mount.querySelector("section[aria-labelledby]");
-assert(summary);
-assert.equal(exactText("View progress photos", "a").getAttribute("href"), "/progress/body/photos");
-assert(exactText("Log measurement", "a"));
-await settled(() => assert(summary.textContent?.includes("17 photos")));
-assert.equal(summary.querySelector("time")?.dateTime, photo.takenOn);
-assert.equal(requests, 1, "the card does not fetch a photo list or bytes");
-assert(
-  !queryClient
+function photoQueries(owner?: string) {
+  return queryClient
     .getQueryCache()
     .getAll()
-    .some((query) => query.queryKey[0] === "photo-summary"),
-);
-await act(() => {
-  owner = "bob";
-  signIn("bob");
-  assert(
-    summary.querySelector("time")?.closest("[hidden]"),
-    "owner loss conceals the date immediately",
-  );
-});
+    .filter(
+      (query) =>
+        query.queryKey[0] === "progress_photos" &&
+        (owner === undefined || query.queryKey[1] === owner),
+    );
+}
+function count(operation: string) {
+  return operations.filter((name) => name === operation).length;
+}
+async function selectLabel(select: HTMLSelectElement, value: string) {
+  await act(() => {
+    select.value = value;
+    select.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+}
+async function submitForm() {
+  await act(() => {
+    const form = mount.querySelector("form");
+    assert(form);
+    form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  });
+}
+async function chooseFile() {
+  const chooser = mount.querySelector<HTMLInputElement>("input[type=file]");
+  assert(chooser);
+  await act(async () => {
+    const selected = new File(["fixture"], "synthetic.jpg", { type: "image/jpeg" });
+    Object.defineProperty(chooser, "files", {
+      configurable: true,
+      value: { item: () => selected },
+    });
+    chooser.dispatchEvent(new window.Event("change", { bubbles: true }));
+    await Bun.sleep(5);
+  });
+  await settled(() => assert(mount.querySelector('img[alt="Preview for upload"]')));
+  return chooser;
+}
+
+// --- Body summary card: owner-scoped count and date, no list or bytes ---------------
+await act(() => setOwner("alice"));
 await renderPage("/progress/body", Body);
-await settled(() => assert(summary.textContent?.includes("0 photos")));
-assert(!summary.querySelector("time"));
-owner = "alice";
+const summary = () =>
+  [...mount.querySelectorAll("h2")]
+    .find((heading) => heading.textContent === "Progress photos")
+    ?.closest("section");
+assert.equal(exactText("View progress photos", "a").getAttribute("href"), "/progress/body/photos");
+await settled(() => assert(summary()?.textContent?.includes("17 photos")));
+assert.equal(summary()?.querySelector("time")?.dateTime, photo.takenOn);
+assert.deepEqual(operations, ["ProgressPhotoSummary"], "the card reads only the aggregate");
+assert(queryClient.getQueryData(photoKeys.summary("alice")));
+await act(() => setOwner("bob"));
+await settled(() => assert(summary()?.textContent?.includes("No photos yet")));
+assert(!summary()?.querySelector("time"));
+assert.equal(photoQueries("alice").length, 0, "an account switch drops the previous owner");
+await act(() => setOwner("alice"));
 assert.deepEqual(
   __testing.trailFor(`/progress/body/photos/${id}/edit`).map((crumb) => crumb.label),
   ["Progress", "Body", "Progress photos", "Photo", "Edit"],
 );
 
-const beforeStale = requests;
-// Stale render of Alice must not fetch as Bob.
+// --- Gallery: retry, paging, date rows, private thumbnails --------------------------
 await renderPage("/progress/body/photos", Gallery);
-assert.equal(requests, beforeStale);
-await act(() => {
-  signIn("alice");
-});
 await settled(() => assert(mount.textContent?.includes("Couldn't load photos")));
 assert.equal(exactText("Body", "nav a").getAttribute("aria-current"), "page");
 listFails = false;
@@ -480,11 +440,7 @@ assert.deepEqual(
 );
 await act(() => exactText("Load older photos").click());
 await settled(() => assert(mount.textContent?.includes("Couldn't load older photos")));
-assert.equal(
-  timeline()?.querySelectorAll("a").length,
-  15,
-  "a failed next page keeps existing photos",
-);
+assert.equal(timeline()?.querySelectorAll("a").length, 15, "a failed page keeps the photos");
 nextPageFails = false;
 await act(() => exactText("Load older photos").click());
 await settled(() => assert.equal(timeline()?.children.length, 2));
@@ -494,86 +450,81 @@ assert.deepEqual(
 );
 assert.equal(timeline()?.firstElementChild?.querySelectorAll("a").length, 16);
 assert.equal(timeline()?.lastElementChild?.querySelectorAll("a").length, 1);
-await settled(() => assert(mount.querySelector("img[src^='blob:']")));
-const firstURL = mount.querySelector("img")?.src;
-assert(firstURL);
+await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 17));
+assert(
+  imageRequests.every((url) => url.includes("w=480")),
+  "tiles use the private transform",
+);
+
+// Label filter: a catalog value newer than the generated types, kept in the URL.
 const filter = mount.querySelector("select");
 assert(filter);
-async function selectLabel(select: HTMLSelectElement, value: string) {
-  await act(() => {
-    select.value = value;
-    select.dispatchEvent(new window.Event("change", { bubbles: true }));
-  });
-}
 await selectLabel(filter, "side");
-await settled(() => assert(mount.textContent?.includes("No photos for this label")));
+assert.deepEqual(search, { label: "side" });
+assert.equal(searchChanges.at(-1)?.replace, true);
+await settled(() => assert(mount.textContent?.includes("No Side photos")));
 assert.equal(lastFilter, "side", "a newer catalog value must remain a GraphQL filter");
-assert(revoked.includes(firstURL));
+await act(() => exactText("Show all photos").click());
+assert.deepEqual(search, {});
+await settled(() => assert.equal(timeline()?.querySelectorAll("a").length, 17));
 
+// Hiding the tab no longer tears anything down.
+const imagesBeforeHide = imageRequests.length;
+await act(() => visibility(true));
+assert.equal(timeline()?.querySelectorAll("img[src^='blob:']").length, 17);
+await act(() => visibility(false));
+assert.equal(imageRequests.length, imagesBeforeHide);
+
+// --- Viewer, then Back: lists and thumbnails come from the in-memory cache ----------
+const historyReads = count("ProgressPhotoHistory");
+await renderPage(`/progress/body/photos/${id}`, Viewer);
+await settled(() =>
+  assert(mount.querySelector("img[src^='blob:'][alt^='Front A progress photo']")),
+);
+assert(!imageRequests.at(-1)?.includes("w="), "the viewer reads the prepared original");
+assert.equal(exactText("Edit", "a").dataset["replace"], "true");
+const imagesBeforeBack = imageRequests.length;
+await renderPage("/progress/body/photos", Gallery);
+assert.equal(timeline()?.querySelectorAll("a").length, 17, "Back keeps the loaded pages");
+await settled(() => assert.equal(mount.querySelectorAll("img[src^='blob:']").length, 17));
+assert.equal(count("ProgressPhotoHistory"), historyReads, "a fresh list is not refetched");
+assert.equal(imageRequests.length, imagesBeforeBack, "cached thumbnails are not downloaded again");
+
+// --- Sign-out with an image in flight: cancelled, unmounted and dropped -------------
+queryClient.removeQueries({ queryKey: photoKeys.bytes("alice", id, "full") });
 const held = Promise.withResolvers<Response>();
 fileHeld = held;
 await renderPage(`/progress/body/photos/${id}`, Viewer);
 await settled(() => assert(imageSignal && !imageSignal.aborted));
-const oldSignal = imageSignal;
+const inFlight = imageSignal;
 const beforeLate = allocated;
-await act(() => {
-  client.clearSession();
-  assert(mount.querySelector("div")?.hidden, "sign-out conceals synchronously");
+await act(() => setOwner(null));
+assert(inFlight?.aborted, "sign-out cancels photo requests");
+assert.equal(mount.textContent, "", "sign-out unmounts photo screens");
+assert.equal(photoQueries().length, 0, "sign-out drops every cached photo row and image");
+await act(async () => {
   held.resolve(new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/jpeg" } }));
+  await Bun.sleep(10);
 });
-assert(oldSignal?.aborted);
-assert.equal(allocated, beforeLate);
-assert(!mount.textContent?.includes("2001"));
+assert.equal(allocated, beforeLate, "a late response creates no image URL");
+assert.equal(revoked.length, allocated, "every displayed image URL was revoked");
 fileHeld = undefined;
-await act(() => signIn("alice"));
-await settled(() => assert(mount.querySelector("img[src^='blob:']")));
-const beforeHide = allocated;
-await act(() => {
-  window.dispatchEvent(new window.Event("pagehide"));
-  assert(mount.querySelector("div")?.hidden);
-  window.dispatchEvent(new window.Event("pageshow"));
-});
-await settled(() => assert(allocated > beforeHide && !mount.querySelector("div")?.hidden));
-assert(revoked.includes(`blob:http://localhost/test-${beforeHide}`));
-assert.equal(exactText("Edit", "a").dataset["replace"], "true");
-const viewerURL = mount.querySelector("img")?.src;
-assert(viewerURL);
-await act(() => visibility(true));
-assert(!mount.querySelector("img"));
-assert(revoked.includes(viewerURL), "viewing routes still revoke images on ordinary hide");
-await act(() => visibility(false));
-await settled(() => assert(mount.querySelector("img[src^='blob:']")));
 
+// --- Create: preview survives a hidden tab; a lost upload reconciles the same reservation
+await act(() => setOwner("alice"));
+await renderPage("/progress/body/photos", Gallery);
+await settled(() => assert.equal(timeline()?.querySelectorAll("a").length, 15));
 await renderPage("/progress/body/photos/new", New);
 assert.equal(
   mount.querySelector<HTMLInputElement>("input[type=date]")?.value,
   new Date().toLocaleDateString("en-CA"),
 );
-async function submitForm() {
-  await act(() => {
-    const form = mount.querySelector("form");
-    assert(form);
-    form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
-  });
-}
-const chooser = mount.querySelector<HTMLInputElement>("input[type=file]");
-assert(chooser);
-chooser.focus();
+const chooser = await chooseFile();
+const preview = mount.querySelector('img[alt="Preview for upload"]');
 await act(() => visibility(true));
-assert.equal(mount.querySelector("input[type=file]"), chooser);
-assert.equal(document.activeElement, chooser);
-assert(!chooser.closest("[hidden]"), "the native file control must not be hidden");
-await act(() => {
-  const selected = new File(["fixture"], "synthetic.jpg", { type: "image/jpeg" });
-  Object.defineProperty(chooser, "files", { value: { item: () => selected } });
-  chooser.dispatchEvent(new window.Event("change", { bubbles: true }));
-});
-const preview = mount.querySelector<HTMLImageElement>('img[alt="Preview for upload"]');
-assert(preview);
-assert(preview.closest("[data-photo-concealed]"));
+assert.equal(mount.querySelector('img[alt="Preview for upload"]'), preview, "draft kept");
+assert(chooser.isConnected);
 await act(() => visibility(false));
-assert.equal(mount.querySelector('img[alt="Preview for upload"]'), preview);
-assert(!preview.closest("[data-photo-concealed]"));
 const newLabel = mount.querySelector("select");
 assert(newLabel);
 await selectLabel(newLabel, "side");
@@ -583,49 +534,60 @@ uploadHeld = uploading;
 checkingUpload = true;
 await submitForm();
 await settled(() => assert.equal(uploadedIds.length, 1));
-await act(() => visibility(true));
-assert.equal(mount.querySelector("input[type=file]"), chooser);
-assert(uploadSignal && !uploadSignal.aborted);
+assert.deepEqual(lastUpload, {
+  bucket: "progress_photos",
+  name: "progress-photo.jpg",
+  type: "image/jpeg",
+});
 await act(() => uploading.resolve(new Response(null, { status: 500 })));
-await settled(() => assert(!exactText("Check upload").hasAttribute("disabled")));
-await act(() => visibility(false));
+await settled(() => assert(!exactText("Try again").hasAttribute("disabled")));
+assert(mount.textContent?.includes("didn't finish uploading"));
 uploadHeld = undefined;
 await submitForm();
 await settled(() => assert.equal(navigations.length, 1));
-assert.equal(reservations, 1);
+assert.equal(reservations, 1, "a retry never reserves again");
 assert.deepEqual(uploadedIds, [id, id]);
 assert.deepEqual(navigations.pop(), {
   to: "/progress/body/photos/$photoId",
   params: { photoId: id },
   replace: true,
 });
+assert(queryClient.getQueryState(photoKeys.list("alice", ""))?.isInvalidated, "list refreshes");
 checkingUpload = false;
-await act(() => window.dispatchEvent(new window.Event("pagehide")));
-assert(!chooser.isConnected);
-assert(!mount.querySelector("form"));
-assert(revoked.includes(preview.src));
-await act(() => window.dispatchEvent(new window.Event("pageshow")));
-assert.notEqual(mount.querySelector("input[type=file]"), chooser);
-assert(!mount.querySelector('img[alt="Preview for upload"]'));
-assert(exactText("Upload photo").hasAttribute("disabled"));
-const restoredChooser = mount.querySelector("input[type=file]");
-await act(() => {
-  visibility(true);
-  client.clearSession();
+
+// Leaving the form stops its in-flight upload; nothing navigates afterwards. (The
+// scripted navigation doesn't unmount, so leave through the gallery like the router.)
+await renderPage("/progress/body/photos", Gallery);
+await renderPage("/progress/body/photos/new", New);
+await chooseFile();
+const formLabel = mount.querySelector("select");
+assert(formLabel);
+await selectLabel(formLabel, "side");
+const abandoned = Promise.withResolvers<Response>();
+uploadHeld = abandoned;
+await submitForm();
+await settled(() => assert.equal(uploadedIds.length, 3));
+const abandonedSignal = uploadSignal;
+await renderPage("/progress/body/photos", Gallery);
+assert(abandonedSignal?.aborted, "route exit aborts the upload");
+await act(async () => {
+  abandoned.resolve(Response.json({ processedFiles: [{ id, isUploaded: true }] }));
+  await Bun.sleep(10);
 });
-assert(!restoredChooser?.isConnected, "sign-out must retire the concealed create route");
-await act(() => {
-  visibility(false);
-  signIn("alice");
-});
+assert.equal(navigations.length, 0);
+uploadHeld = undefined;
+await renderPage("/progress/body/photos/new", New);
 await act(() => exactText("Cancel").click());
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
+
+// --- Edit: save, then delete with a lost response reconciled by reading the photo ---
 await renderPage(`/progress/body/photos/${id}/edit`, Edit);
 await settled(() => assert(!exactText("Save changes").hasAttribute("disabled")));
 const editLabel = mount.querySelector("select");
 assert(editLabel);
 await selectLabel(editLabel, "side");
 await submitForm();
+await settled(() => assert.equal(navigations.length, 1));
 assert.deepEqual(navigations.pop(), {
   to: "/progress/body/photos/$photoId",
   params: { photoId: id },
@@ -639,20 +601,33 @@ assert.equal(
   document.getElementById(dialog.getAttribute("aria-labelledby") ?? "")?.textContent,
   "Delete this progress photo?",
 );
+assert(dialog.textContent?.includes("This can't be undone."));
 const confirmDelete = [...dialog.querySelectorAll("button")].find(
   (button) => button.textContent === "Delete photo",
 );
 assert(confirmDelete);
 await act(() => confirmDelete.click());
+await settled(() => assert.equal(navigations.length, 1));
 assert(tookDelete);
 assert.deepEqual(navigations.pop(), { to: "/progress/body/photos", replace: true });
-owner = "bob";
-await act(() => signIn("bob"));
+assert.equal(
+  queryClient.getQueryCache().findAll({ queryKey: photoKeys.lists("alice") }).length,
+  0,
+  "the gallery reloads instead of flashing the deleted photo",
+);
+assert.equal(
+  queryClient.getQueryCache().findAll({ queryKey: photoKeys.photo("alice", id) }).length,
+  0,
+);
+
+// --- Another account sees none of it ------------------------------------------------
+await act(() => setOwner("bob"));
 await renderPage("/progress/body/photos", Gallery);
-await settled(() => assert(mount.textContent?.includes("No progress photos")));
+await settled(() => assert(mount.textContent?.includes("No progress photos yet")));
 assert(!mount.textContent?.includes("2001"));
+assert.equal(photoQueries("alice").length, 0);
 await act(() => root.unmount());
-assert.equal(revoked.length, allocated);
+assert.equal(revoked.length, allocated, "every object URL is revoked");
 
 queryClient.clear();
 await dom.happyDOM.close();

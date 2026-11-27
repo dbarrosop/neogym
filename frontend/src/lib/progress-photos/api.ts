@@ -1,12 +1,10 @@
-import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
-import { print } from "graphql";
 import { graphql } from "@/gql";
 import type {
   ProgressPhoto_Bool_Exp,
   ProgressPhotoHistoryQuery,
   ProgressPhotoLabel_Enum,
 } from "@/gql/graphql";
-import type { PhotoScope } from "./scope";
+import { gqlRequest } from "@/lib/graphql";
 
 const PhotoLabels = graphql(`
   query ProgressPhotoLabels {
@@ -77,6 +75,34 @@ export type ReadyPhoto = Photo & { file: { id: string; isUploaded: true } };
 export type PhotoCursor = Pick<Photo, "takenOn" | "createdAt" | "id">;
 export type PhotoFields = { label: ProgressPhotoLabel_Enum; date: string };
 
+/**
+ * Every photo query (rows and image bytes) lives under one owner-scoped prefix in the
+ * app's in-memory query cache, so sign-out and account switches drop them together
+ * (`PhotoCacheGuard`). A photo's row and bytes share `photo(owner, id)`.
+ */
+export const photoKeys = {
+  all: ["progress_photos"] as const,
+  owner: (owner: string) => ["progress_photos", owner] as const,
+  labels: (owner: string) => ["progress_photos", owner, "labels"] as const,
+  summary: (owner: string) => ["progress_photos", owner, "summary"] as const,
+  lists: (owner: string) => ["progress_photos", owner, "list"] as const,
+  list: (owner: string, label: string) => ["progress_photos", owner, "list", label] as const,
+  photo: (owner: string, id: string) => ["progress_photos", owner, "photo", id] as const,
+  detail: (owner: string, id: string) => ["progress_photos", owner, "photo", id, "row"] as const,
+  bytes: (owner: string, id: string, variant: "thumbnail" | "full") =>
+    ["progress_photos", owner, "photo", id, "bytes", variant] as const,
+};
+
+/** Image bytes never change (files aren't replaced), so writes don't refetch them. */
+export function isPhotoBytesKey(key: readonly unknown[]) {
+  return key[2] === "photo" && key[4] === "bytes";
+}
+
+/** Photo traffic never uses the browser's HTTP cache; auth and refresh stay with the SDK. */
+export function photoRequest(signal?: AbortSignal): RequestInit {
+  return { signal: signal ?? null, cache: "no-store" };
+}
+
 export function readyPhoto(photo: Photo | null | undefined): photo is ReadyPhoto {
   return Boolean(photo?.file?.isUploaded && photo.id === photo.file.id && PHOTO_ID.test(photo.id));
 }
@@ -123,69 +149,15 @@ export function galleryWhere(
   return where;
 }
 
-export async function photoFetch(
-  scope: PhotoScope,
-  url: string,
-  request: RequestInit,
-  use: AbortSignal,
-  timeout: number,
-) {
-  const signal = AbortSignal.any([scope.signal, use, AbortSignal.timeout(timeout)]);
-  const token = await scope.accessToken(signal);
-  scope.assertActive(signal);
-  const headers = new Headers(request.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(url, {
-    ...request,
-    headers,
-    signal,
-    cache: "no-store",
-    credentials: "omit",
-    redirect: "error",
-    referrerPolicy: "no-referrer",
-  });
-  scope.assertActive(signal);
-  return response;
+export async function listLabels(signal?: AbortSignal) {
+  return (await gqlRequest(PhotoLabels, {}, photoRequest(signal))).progressPhotoLabels;
 }
 
-async function photoGraphQL<T, V>(
-  scope: PhotoScope,
-  document: TypedDocumentNode<T, V>,
-  variables: V,
-  use = scope.signal,
-) {
-  const response = await photoFetch(
-    scope,
-    scope.client.graphql.url,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: print(document), variables }),
-    },
-    use,
-    12_000,
-  );
-  if (!response.ok) {
-    throw new Error("Photo request failed.");
-  }
-  const body: { data?: T; errors?: unknown[] } = await response.json();
-  scope.assertActive(use);
-  if (!body.data || (body.errors?.length ?? 0) > 0) {
-    throw new Error("Photo request failed.");
-  }
-  return body.data;
-}
-
-export async function listLabels(scope: PhotoScope, signal: AbortSignal) {
-  return (await photoGraphQL(scope, PhotoLabels, {}, signal)).progressPhotoLabels;
-}
-
-export async function readPhotoSummary(scope: PhotoScope, signal: AbortSignal) {
-  const { progressPhotosAggregate } = await photoGraphQL(
-    scope,
+export async function readPhotoSummary(owner: string, signal?: AbortSignal) {
+  const { progressPhotosAggregate } = await gqlRequest(
     PhotoSummary,
-    { where: galleryWhere(scope.owner, null, null) },
-    signal,
+    { where: galleryWhere(owner, null, null) },
+    photoRequest(signal),
   );
   const aggregate = progressPhotosAggregate.aggregate;
   if (!aggregate) {
@@ -195,16 +167,15 @@ export async function readPhotoSummary(scope: PhotoScope, signal: AbortSignal) {
 }
 
 export async function listPhotos(
-  scope: PhotoScope,
+  owner: string,
   label: ProgressPhotoLabel_Enum | null,
   cursor: PhotoCursor | null,
-  signal: AbortSignal,
+  signal?: AbortSignal,
 ) {
-  const { progressPhotos } = await photoGraphQL(
-    scope,
+  const { progressPhotos } = await gqlRequest(
     PhotoHistory,
-    { where: galleryWhere(scope.owner, label, cursor), limit: PHOTO_PAGE_SIZE + 1 },
-    signal,
+    { where: galleryWhere(owner, label, cursor), limit: PHOTO_PAGE_SIZE + 1 },
+    photoRequest(signal),
   );
   const visible = progressPhotos.slice(0, PHOTO_PAGE_SIZE);
   const last = visible.at(-1);
@@ -216,22 +187,26 @@ export async function listPhotos(
   return { items: visible.filter(readyPhoto), nextCursor };
 }
 
-export async function readPhoto(scope: PhotoScope, id: string, signal = scope.signal) {
+export async function readPhoto(id: string, signal?: AbortSignal) {
   if (!PHOTO_ID.test(id)) {
     return null;
   }
-  return (await photoGraphQL(scope, PhotoById, { id }, signal)).progressPhoto;
+  return (await gqlRequest(PhotoById, { id }, photoRequest(signal))).progressPhoto;
 }
 
-export async function reservePhoto(scope: PhotoScope, fields: PhotoFields) {
-  const { insertProgressPhoto } = await photoGraphQL(scope, ReservePhoto, fields);
+export async function reservePhoto(fields: PhotoFields, signal?: AbortSignal) {
+  const { insertProgressPhoto } = await gqlRequest(ReservePhoto, fields, photoRequest(signal));
   if (!insertProgressPhoto || !PHOTO_ID.test(insertProgressPhoto.id)) {
     throw new Error("Reservation not confirmed.");
   }
   return insertProgressPhoto.id;
 }
 
-export async function updatePhoto(scope: PhotoScope, id: string, fields: PhotoFields) {
-  const { updateProgressPhoto } = await photoGraphQL(scope, UpdatePhoto, { id, ...fields });
+export async function updatePhoto(id: string, fields: PhotoFields, signal?: AbortSignal) {
+  const { updateProgressPhoto } = await gqlRequest(
+    UpdatePhoto,
+    { id, ...fields },
+    photoRequest(signal),
+  );
   return updateProgressPhoto?.id === id;
 }

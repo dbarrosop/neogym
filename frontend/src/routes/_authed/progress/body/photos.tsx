@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { PrivatePhotos } from "@/components/progress-photos/photo-boundary";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { Fragment } from "react";
+import { useAuth } from "@/lib/nhost/auth-provider";
 
 export const Route = createFileRoute("/_authed/progress/body/photos")({
   ssr: false,
@@ -7,12 +8,11 @@ export const Route = createFileRoute("/_authed/progress/body/photos")({
 });
 
 function PhotoLayout() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const keepWhileHidden =
-    pathname === "/progress/body/photos/new" || pathname === "/progress/body/photos/new/";
-  return (
-    <PrivatePhotos key={pathname} keepWhileHidden={keepWhileHidden}>
+  const { user } = useAuth();
+  // An account switch remounts the photo screens, so no draft or form state carries over.
+  return user ? (
+    <Fragment key={user.id}>
       <Outlet />
-    </PrivatePhotos>
-  );
+    </Fragment>
+  ) : null;
 }

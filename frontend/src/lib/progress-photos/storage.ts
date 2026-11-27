@@ -1,97 +1,50 @@
-import { JPEG_LIMIT, photoFetch, readPhoto } from "./api";
-import type { PhotoScope } from "./scope";
+import { FetchError } from "@nhost/nhost-js/fetch";
+import { nhost } from "@/lib/nhost/client";
+import { photoRequest, readPhoto } from "./api";
 
+export const PHOTO_BUCKET = "progress_photos";
 const DISPLAY_IMAGE = /^image\/(jpeg|webp|png)(;|$)/i;
+/** Private server-side resize for gallery tiles; the viewer reads the prepared JPEG. */
+const THUMBNAIL = { w: 480, h: 600 } as const;
 
-function filesURL(scope: PhotoScope) {
-  return `${scope.client.storage.baseURL}/files`;
+/** Upload bytes for a reservation. `true` only when Storage confirms this exact ID is ready. */
+export async function uploadPhoto(id: string, jpeg: Blob, signal?: AbortSignal) {
+  const file = new File([jpeg], "progress-photo.jpg", { type: "image/jpeg" });
+  const { body } = await nhost.storage.uploadFiles(
+    { "bucket-id": PHOTO_BUCKET, "metadata[]": [{ id }], "file[]": [file] },
+    photoRequest(signal),
+  );
+  const [processed] = body.processedFiles ?? [];
+  return body.processedFiles?.length === 1 && processed?.id === id && processed.isUploaded === true;
 }
 
-export async function uploadPhoto(scope: PhotoScope, id: string, jpeg: Blob) {
-  const body = new FormData();
-  body.append("bucket-id", "progress_photos");
-  body.append("metadata[]", new Blob([JSON.stringify({ id })], { type: "application/json" }), "");
-  body.append("file[]", jpeg, "progress-photo.jpg");
-  const response = await photoFetch(
-    scope,
-    filesURL(scope),
-    { method: "POST", body },
-    scope.signal,
-    45_000,
-  );
-  if (!response.ok) {
-    return false;
-  }
-  const result: { processedFiles?: { id?: string; isUploaded?: boolean }[] } =
-    await response.json();
-  scope.assertActive();
-  return (
-    result.processedFiles?.length === 1 &&
-    result.processedFiles[0]?.id === id &&
-    result.processedFiles[0]?.isUploaded === true
-  );
-}
-
-export async function deletePhoto(scope: PhotoScope, id: string) {
+/** Delete a photo's file (cascading to its row); reconciles an uncertain response by reading it. */
+export async function deletePhoto(id: string, signal?: AbortSignal) {
   try {
-    const response = await photoFetch(
-      scope,
-      `${filesURL(scope)}/${id}`,
-      { method: "DELETE" },
-      scope.signal,
-      12_000,
-    );
-    if (response.ok || response.status === 404) {
+    await nhost.storage.deleteFile(id, photoRequest(signal));
+    return true;
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof FetchError && error.status === 404) {
       return true;
     }
-  } catch {
-    scope.assertActive();
   }
   // A missing row establishes inaccessibility, not physical byte removal.
-  return (await readPhoto(scope, id)) === null;
+  return (await readPhoto(id, signal)) === null;
 }
 
-export function loadPhotoBytes(
-  scope: PhotoScope,
+export async function loadPhotoBytes(
   id: string,
-  thumbnail: boolean,
-  use: AbortSignal,
+  variant: "thumbnail" | "full",
+  signal?: AbortSignal,
 ) {
-  const signal = AbortSignal.any([scope.signal, use]);
-  return scope.withImageSlot(signal, async () => {
-    const url = `${filesURL(scope)}/${id}${thumbnail ? "?w=480&h=600" : ""}`;
-    const response = await photoFetch(scope, url, {}, signal, 20_000);
-    if (
-      !response.ok ||
-      !response.body ||
-      !DISPLAY_IMAGE.test(response.headers.get("Content-Type") ?? "")
-    ) {
-      void response.body?.cancel().catch(() => undefined);
-      throw new Error("Image unavailable.");
-    }
-    const reader = response.body.getReader();
-    const chunks: Uint8Array<ArrayBuffer>[] = [];
-    let bytes = 0;
-    try {
-      while (true) {
-        // biome-ignore lint/performance/noAwaitInLoops: cap the byte stream before accumulating more chunks.
-        const { value, done } = await reader.read();
-        scope.assertActive(signal);
-        if (done) {
-          break;
-        }
-        bytes += value.byteLength;
-        if (bytes > JPEG_LIMIT) {
-          throw new Error("Image unavailable.");
-        }
-        chunks.push(new Uint8Array(value));
-      }
-    } finally {
-      void reader.cancel().catch(() => undefined);
-    }
-    if (bytes === 0) {
-      throw new Error("Image unavailable.");
-    }
-    return new Blob(chunks, { type: response.headers.get("Content-Type") ?? "image/jpeg" });
-  });
+  const { body, headers } = await nhost.storage.getFile(
+    id,
+    variant === "thumbnail" ? THUMBNAIL : undefined,
+    photoRequest(signal),
+  );
+  if (body.size === 0 || !DISPLAY_IMAGE.test(headers.get("Content-Type") ?? "")) {
+    throw new Error("Image unavailable.");
+  }
+  return body;
 }

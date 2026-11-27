@@ -1,19 +1,20 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useRef, useState } from "react";
 import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { FormActions } from "@/components/patterns/form-actions";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
-import { usePhotoScope } from "@/components/progress-photos/photo-boundary";
 import { PhotoDetailState } from "@/components/progress-photos/photo-detail-state";
 import {
   catalogLabelValue,
   PhotoDateInput,
   PhotoLabelSelect,
-  PhotoLoadError,
+  PhotoLabelsState,
   usePhotoLabels,
 } from "@/components/progress-photos/photo-fields";
+import { invalidatePhotoRows, usePhotoOwner } from "@/components/progress-photos/photo-session";
 import { useFormPageFormId } from "@/lib/form-page-context";
-import { type Photo, type PhotoFields, updatePhoto } from "@/lib/progress-photos/api";
+import { type Photo, type PhotoFields, photoKeys, updatePhoto } from "@/lib/progress-photos/api";
 import { validPhotoDate } from "@/lib/progress-photos/date";
 import { deletePhoto } from "@/lib/progress-photos/storage";
 import { useLocalToday } from "@/lib/use-local-today";
@@ -37,7 +38,8 @@ function EditPhoto({ photo }: { photo: Photo }) {
   const [error, setError] = useState<string>();
   const busy = useRef(false);
   const navigate = Route.useNavigate();
-  const scope = usePhotoScope();
+  const owner = usePhotoOwner();
+  const queryClient = useQueryClient();
   const openViewer = () =>
     navigate({
       to: "/progress/body/photos/$photoId",
@@ -46,37 +48,36 @@ function EditPhoto({ photo }: { photo: Photo }) {
     });
 
   async function apply(action: "saving" | "deleting", operation: () => Promise<boolean>) {
-    if (busy.current || !scope.active) {
+    if (busy.current) {
       return;
     }
     busy.current = true;
     setError(undefined);
     setStage(action);
     try {
-      const complete = await operation();
-      scope.assertActive();
-      if (!complete) {
+      if (!(await operation())) {
         throw new Error("Photo operation was not confirmed.");
       }
       if (action === "deleting") {
+        // Cached lists would flash the deleted photo; the gallery reloads them instead.
+        queryClient.removeQueries({ queryKey: photoKeys.lists(owner) });
+        void queryClient.invalidateQueries({ queryKey: photoKeys.summary(owner) });
         await navigate({ to: "/progress/body/photos", replace: true });
+        queryClient.removeQueries({ queryKey: photoKeys.photo(owner, photo.id) });
       } else {
+        await invalidatePhotoRows(queryClient, owner);
         await openViewer();
       }
     } catch {
-      if (scope.active) {
-        setError(
-          action === "deleting"
-            ? "Couldn't confirm deletion. Check the connection and retry Delete."
-            : "Couldn't save changes. Check the connection and retry Save.",
-        );
-        setConfirm(false);
-      }
+      setError(
+        action === "deleting"
+          ? "Couldn't delete the photo. Check your connection and try again."
+          : "Couldn't save your changes. Check your connection and try again.",
+      );
+      setConfirm(false);
     } finally {
       busy.current = false;
-      if (scope.active) {
-        setStage(undefined);
-      }
+      setStage(undefined);
     }
   }
 
@@ -87,7 +88,7 @@ function EditPhoto({ photo }: { photo: Photo }) {
       danger={
         <DangerZone
           title="Delete this photo"
-          description="Removes the photo from your private history."
+          description="Permanently removes this photo from your history."
           actionLabel="Delete photo"
           onAction={() => setConfirm(true)}
           disabled={Boolean(stage)}
@@ -99,9 +100,7 @@ function EditPhoto({ photo }: { photo: Photo }) {
         stage={stage}
         error={error}
         cancel={() => void openViewer()}
-        save={(label, date) =>
-          void apply("saving", () => updatePhoto(scope, photo.id, { label, date }))
-        }
+        save={(label, date) => void apply("saving", () => updatePhoto(photo.id, { label, date }))}
       />
       <ConfirmActionDialog
         open={confirm}
@@ -111,12 +110,12 @@ function EditPhoto({ photo }: { photo: Photo }) {
           }
         }}
         title="Delete this progress photo?"
-        description="The photo will no longer be available in your history. Storage cleanup may continue after it disappears."
+        description="The photo is removed from your history for good. This can't be undone."
         destructive
         confirmLabel="Delete photo"
         pendingLabel="Deleting…"
         isPending={stage === "deleting"}
-        onConfirm={() => void apply("deleting", () => deletePhoto(scope, photo.id))}
+        onConfirm={() => void apply("deleting", () => deletePhoto(photo.id))}
       />
     </FormPage>
   );
@@ -139,7 +138,7 @@ function EditPhotoForm({
   const formId = useFormPageFormId();
   const today = useLocalToday();
   const [date, setDate] = useState<string>(photo.takenOn);
-  const [selectedLabel, setSelectedLabel] = useState(photo.label.value);
+  const [selectedLabel, setSelectedLabel] = useState<string>(photo.label.value);
   const label = catalogLabelValue(selectedLabel, labels.data);
   const validDate = validPhotoDate(date, today);
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -151,23 +150,13 @@ function EditPhotoForm({
   return (
     <form id={formId} autoComplete="off" className="space-y-5" onSubmit={submit}>
       <fieldset className="space-y-5" disabled={Boolean(stage)}>
-        {labels.data ? (
-          <PhotoLabelSelect
-            labels={labels.data}
-            value={selectedLabel}
-            onChange={setSelectedLabel}
-          />
-        ) : null}
+        <PhotoLabelsState labels={labels}>
+          {(catalog) => (
+            <PhotoLabelSelect labels={catalog} value={selectedLabel} onChange={setSelectedLabel} />
+          )}
+        </PhotoLabelsState>
         <PhotoDateInput value={date} today={today} onChange={setDate} />
       </fieldset>
-      {labels.isPending ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading labels…
-        </p>
-      ) : null}
-      {labels.isError ? (
-        <PhotoLoadError title="Couldn't load photo labels" retry={() => void labels.refetch()} />
-      ) : null}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}

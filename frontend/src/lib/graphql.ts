@@ -5,11 +5,16 @@ import { nhost } from "./nhost/client";
 export async function gqlRequest<TResult, TVariables>(
   document: TypedDocumentNode<TResult, TVariables>,
   variables?: TVariables,
+  /** Fetch options such as an abort `signal`; auth and session refresh stay with the SDK. */
+  options?: RequestInit,
 ): Promise<TResult> {
-  const res = await nhost.graphql.request({
-    query: print(document),
-    variables: variables as Record<string, unknown> | undefined,
-  });
+  const res = await nhost.graphql.request(
+    {
+      query: print(document),
+      variables: variables as Record<string, unknown> | undefined,
+    },
+    options,
+  );
   if (res.body.errors && res.body.errors.length > 0) {
     throw new Error(res.body.errors.map((e) => e.message).join("; "));
   }

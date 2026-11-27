@@ -1,16 +1,17 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { type FormEvent, useId, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { FormActions } from "@/components/patterns/form-actions";
 import { FormPage } from "@/components/patterns/form-page";
-import { usePhotoScope } from "@/components/progress-photos/photo-boundary";
 import {
   catalogLabelValue,
   PhotoDateInput,
   PhotoLabelSelect,
-  PhotoLoadError,
+  PhotoLabelsState,
   usePhotoLabels,
 } from "@/components/progress-photos/photo-fields";
 import { PhotoPreview } from "@/components/progress-photos/photo-image";
+import { invalidatePhotoRows, usePhotoOwner } from "@/components/progress-photos/photo-session";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFormPageFormId } from "@/lib/form-page-context";
@@ -35,54 +36,75 @@ function NewPhotoPage() {
   );
 }
 
+/**
+ * The form's lifetime as an abort signal: leaving the page (or an account switch, which
+ * remounts it) stops preparing and uploading. The draft only ever lives in this component.
+ */
+function useFormSignal() {
+  const controller = useRef<AbortController>(null);
+  useEffect(() => {
+    const current = new AbortController();
+    controller.current = current;
+    return () => current.abort();
+  }, []);
+  return () => controller.current?.signal ?? AbortSignal.abort();
+}
+
+type Stage = "Preparing photo…" | "Uploading…" | "Checking upload…";
+
 function NewPhotoForm() {
-  const scope = usePhotoScope();
+  const owner = usePhotoOwner();
+  const queryClient = useQueryClient();
   const navigate = Route.useNavigate();
   const labels = usePhotoLabels();
   const formId = useFormPageFormId();
   const fileId = useId();
   const today = useLocalToday();
+  const formSignal = useFormSignal();
   const [date, setDate] = useState(today);
   const [selectedLabel, setSelectedLabel] = useState("");
   const label = catalogLabelValue(selectedLabel, labels.data);
   const [jpeg, setJPEG] = useState<Blob>();
-  const [stage, setStage] = useState<"Preparing…" | "Uploading…" | "Checking upload…">();
+  const [stage, setStage] = useState<Stage>();
   const [fileError, setFileError] = useState<string>();
   const [outcome, setOutcome] = useState<Exclude<UploadResult, { status: "ready" }>>();
   const busy = useRef(false);
   const attempt = useRef<PhotoUploadAttempt>(null);
 
   async function chooseFile(source: File) {
-    if (busy.current || attempt.current || !scope.active) {
+    if (busy.current || attempt.current) {
       return;
     }
+    const signal = formSignal();
     busy.current = true;
     setJPEG(undefined);
     setFileError(undefined);
-    setStage("Preparing…");
+    setStage("Preparing photo…");
     try {
-      const prepared = await preparePhoto(scope, source, scope.signal);
-      scope.assertActive();
-      setJPEG(prepared);
+      setJPEG(await preparePhoto(source, signal));
     } catch (error) {
-      if (scope.active) {
-        setFileError(error instanceof Error ? error.message : "Couldn't prepare the photo.");
+      if (!signal.aborted) {
+        setFileError(
+          error instanceof Error
+            ? error.message
+            : "Couldn't open this photo. Choose a JPEG or PNG.",
+        );
       }
     } finally {
       busy.current = false;
-      if (scope.active) {
-        setStage(undefined);
-      }
+      setStage(undefined);
     }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current || !scope.active || outcome?.status === "stopped") {
+    if (busy.current || outcome?.status === "stopped") {
       return;
     }
+    const signal = formSignal();
+    // One submission is one immutable attempt: retries reuse its reservation, never a new one.
     if (!attempt.current && jpeg && label && validPhotoDate(date, today)) {
-      attempt.current = newPhotoAttempt(scope, { label, date }, jpeg);
+      attempt.current = newPhotoAttempt({ label, date }, jpeg, signal);
     }
     if (!attempt.current) {
       return;
@@ -92,8 +114,8 @@ function NewPhotoForm() {
     setOutcome(undefined);
     try {
       const result = await attempt.current.run();
-      scope.assertActive();
       if (result.status === "ready") {
+        void invalidatePhotoRows(queryClient, owner);
         await navigate({
           to: "/progress/body/photos/$photoId",
           params: { photoId: result.id },
@@ -102,34 +124,24 @@ function NewPhotoForm() {
       } else {
         setOutcome(result);
       }
+    } catch {
+      if (!signal.aborted) {
+        setOutcome({
+          status: "retry",
+          message: "Couldn't confirm the upload. Check your connection and try again.",
+        });
+      }
     } finally {
       busy.current = false;
-      if (scope.active) {
-        setStage(undefined);
-      }
+      setStage(undefined);
     }
   }
 
   // Read-only once a submission exists: its ID, bytes, date and label are one immutable attempt.
   const submitted = Boolean(attempt.current);
-  const isUploading = stage !== undefined && stage !== "Preparing…";
+  const isUploading = stage !== undefined && stage !== "Preparing photo…";
   return (
-    <form
-      id={formId}
-      autoComplete="off"
-      className="space-y-5"
-      onSubmit={(event) =>
-        void submit(event).catch(() => {
-          if (scope.active) {
-            setOutcome({
-              status: "retry",
-              message:
-                "Couldn't confirm the upload. Check it again before starting a new submission.",
-            });
-          }
-        })
-      }
-    >
+    <form id={formId} autoComplete="off" className="space-y-5" onSubmit={submit}>
       <fieldset disabled={submitted || Boolean(stage)} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor={fileId}>Photo file</Label>
@@ -148,27 +160,17 @@ function NewPhotoForm() {
             aria-describedby={`${fileId}-help`}
           />
           <p id={`${fileId}-help`} className="text-sm text-muted-foreground">
-            Choose one JPEG, PNG or browser-supported HEIC. NeoGym prepares a JPEG without source
-            metadata. Only your signed-in account can access it.
+            JPEG, PNG or HEIC, up to 25 MB. NeoGym removes location and camera details before
+            uploading, and only you can see your progress photos.
           </p>
         </div>
-        {labels.data ? (
-          <PhotoLabelSelect
-            labels={labels.data}
-            value={selectedLabel}
-            onChange={setSelectedLabel}
-          />
-        ) : null}
+        <PhotoLabelsState labels={labels}>
+          {(catalog) => (
+            <PhotoLabelSelect labels={catalog} value={selectedLabel} onChange={setSelectedLabel} />
+          )}
+        </PhotoLabelsState>
         <PhotoDateInput value={date} today={today} onChange={setDate} />
       </fieldset>
-      {labels.isPending ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading labels…
-        </p>
-      ) : null}
-      {labels.isError ? (
-        <PhotoLoadError title="Couldn't load photo labels" retry={() => void labels.refetch()} />
-      ) : null}
       {jpeg ? <PhotoPreview jpeg={jpeg} /> : null}
       {stage ? (
         <p role="status" className="text-sm text-muted-foreground">
@@ -181,9 +183,9 @@ function NewPhotoForm() {
         </p>
       ) : null}
       <FormActions
-        submitLabel={outcome?.status === "retry" ? "Check upload" : "Upload photo"}
+        submitLabel={outcome?.status === "retry" ? "Try again" : "Upload photo"}
         submitDisabled={
-          stage === "Preparing…" ||
+          stage === "Preparing photo…" ||
           outcome?.status === "stopped" ||
           (!submitted && (!jpeg || !label || !validPhotoDate(date, today)))
         }

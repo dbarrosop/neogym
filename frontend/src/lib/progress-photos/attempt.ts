@@ -1,5 +1,4 @@
 import { type Photo, type PhotoFields, readPhoto, readyPhoto, reservePhoto } from "./api";
-import type { PhotoScope } from "./scope";
 import { uploadPhoto } from "./storage";
 
 export type UploadResult =
@@ -71,7 +70,7 @@ export class PhotoUploadAttempt {
     } catch {
       this.signal.throwIfAborted();
       return this.stop(
-        "Couldn't confirm the reservation. No photo was sent. Return to the gallery before starting a new submission.",
+        "Couldn't start the upload. Check your connection, then leave this page and add the photo again.",
       );
     }
     return this.upload(this.#id);
@@ -93,7 +92,7 @@ export class PhotoUploadAttempt {
   private async reconcile(allowUpload: boolean): Promise<UploadResult> {
     const id = this.#id;
     if (!id) {
-      return this.stop("No confirmed reservation is available.");
+      return this.stop("Couldn't start the upload. Leave this page and add the photo again.");
     }
     for (const delay of [0, ...this.delays]) {
       if (delay) {
@@ -108,36 +107,32 @@ export class PhotoUploadAttempt {
         this.signal.throwIfAborted();
         return {
           status: "retry",
-          message: "Couldn't check the upload. Check again when your connection is available.",
+          message:
+            "Couldn't check whether the photo finished uploading. Check your connection and try again.",
         };
       }
       if (!photo || photo.id !== id) {
-        return this.stop(
-          "The reservation is no longer available. Return to the gallery before starting a new submission.",
-        );
+        return this.stop("This upload can't be finished. Leave this page and add the photo again.");
       }
       if (readyPhoto(photo)) {
         return this.ready(id);
       }
       if (!photo.file) {
         if (Date.now() - this.#startedAt >= 60 * 60 * 1000) {
-          return this.stop(
-            "The reservation has expired. Return to the gallery before starting a new submission.",
-          );
+          return this.stop("This upload expired. Leave this page and add the photo again.");
         }
         if (allowUpload) {
           return this.upload(id);
         }
         return {
           status: "retry",
-          message: "The upload wasn't confirmed. Check and retry with this reservation.",
+          message: "The photo didn't finish uploading. Check your connection and try again.",
         };
       }
     }
     return {
       status: "retry",
-      message:
-        "Storage is still processing the photo. Check again shortly; don't start another upload for this photo yet.",
+      message: "The photo is still processing. Try again in a moment.",
     };
   }
 
@@ -152,14 +147,15 @@ export class PhotoUploadAttempt {
   }
 }
 
-export function newPhotoAttempt(scope: PhotoScope, fields: PhotoFields, jpeg: Blob) {
+/** `signal` belongs to the create form: leaving it stops the attempt and its requests. */
+export function newPhotoAttempt(fields: PhotoFields, jpeg: Blob, signal: AbortSignal) {
   return new PhotoUploadAttempt(
     {
-      reserve: (draft) => reservePhoto(scope, draft),
-      upload: (id, blob) => uploadPhoto(scope, id, blob),
-      read: (id) => readPhoto(scope, id),
+      reserve: (draft) => reservePhoto(draft, signal),
+      upload: (id, blob) => uploadPhoto(id, blob, signal),
+      read: (id) => readPhoto(id, signal),
     },
-    scope.signal,
+    signal,
     fields,
     jpeg,
   );
