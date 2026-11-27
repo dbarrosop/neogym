@@ -28,8 +28,9 @@ The web app keeps photo rows and image bytes only in its in-memory query cache, 
   duplicates; a dashed Add slot opens that date with its angle highlighted.
   Selecting an angle shows individual photos, including duplicates. **Load
   older photos** appends 16 ready records by the full server cursor and
-  continues the same date card across pages. Back preserves the angle, not
-  the loaded photos; pull-to-refresh starts at the newest page.
+  continues the same date card across pages. Back to the same gallery preserves
+  the angle, not the loaded photos. A fresh gallery starts at All photos;
+  pull-to-refresh starts at the newest page.
 - **Viewer:** fits the original without cropping inside a fixed 4:5 detail slot,
   with dedicated space for measurements and Older/Newer controls. Those buttons
   change the selection in place rather than pushing a new route or reopening the

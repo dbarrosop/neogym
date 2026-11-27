@@ -110,6 +110,43 @@ final class DemoModeUITests: XCTestCase {
         XCTAssertNotEqual(slider.value as? String, initialPosition)
     }
 
+    func testProgressPhotoGalleryKeepsAngleOnBackButResetsOnReopen() {
+        launch(screen: "progress/body", reset: true)
+        let open = app.buttons["progressPhotos.open"]
+        for _ in 0..<5 where !open.isHittable { scrollPhotoPage() }
+        XCTAssertTrue(open.isHittable)
+        open.tap()
+
+        let gallery = app.navigationBars["Progress photos"]
+        let backAngle = app.buttons["Back A"]
+        let frontTile = app.buttons.matching(identifier: "progressPhotos.tile.front_a").firstMatch
+        let backTile = app.buttons.matching(identifier: "progressPhotos.tile.back_a").firstMatch
+        XCTAssertTrue(backAngle.waitForExistence(timeout: 10))
+        XCTAssertTrue(frontTile.waitForExistence(timeout: 10))
+        backAngle.tap()
+        XCTAssertTrue(backAngle.isSelected)
+        XCTAssertTrue(backTile.waitForExistence(timeout: 10))
+        XCTAssertFalse(frontTile.exists)
+        backTile.tap()
+
+        let detail = app.navigationBars["Progress photo"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 10))
+        detail.buttons.firstMatch.tap()
+        XCTAssertTrue(backTile.waitForExistence(timeout: 10))
+        XCTAssertTrue(backAngle.isSelected, "Returning to the same gallery should preserve its filter")
+        XCTAssertFalse(frontTile.exists)
+        gallery.buttons.firstMatch.tap()
+
+        for _ in 0..<5 where !open.isHittable { scrollPhotoPage() }
+        XCTAssertTrue(open.isHittable)
+        open.tap()
+        let allPhotos = app.buttons["All photos"]
+        XCTAssertTrue(allPhotos.waitForExistence(timeout: 10))
+        XCTAssertTrue(allPhotos.isSelected, "A fresh View all must open unfiltered")
+        XCTAssertTrue(frontTile.waitForExistence(timeout: 10))
+        XCTAssertTrue(backTile.exists)
+    }
+
     private func scrollPhotoPage(end: CGFloat = 0.28) {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.76)).press(forDuration: 0.05,
             thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: end)))

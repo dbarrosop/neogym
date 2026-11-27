@@ -103,6 +103,7 @@ struct ProgressNavigationView: View {
         }
         .onChange(of: path) {
             retirePhotoPresentation()
+            if !path.contains(.progressPhotoGallery) { photoGalleryAngle = "" }
             if let detailSelection, !path.contains(.progressPhotoDetail(detailSelection.anchor)) {
                 self.detailSelection = nil
             }
