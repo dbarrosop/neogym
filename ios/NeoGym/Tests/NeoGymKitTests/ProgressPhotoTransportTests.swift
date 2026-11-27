@@ -103,6 +103,50 @@ final class ProgressPhotoTransportTests: XCTestCase {
         XCTAssertNil(cache.image(for: key))
     }
 
+    func testInFlightLoadsRespectMemoryPurgesPhotoRemovalAndScopeRetirement() async throws {
+        enum Change: CaseIterable { case purge, purgeWithReadFailure, removeOther, removeCurrent, retire }
+        for change in Change.allCases {
+            let response: Result<ProgressPhotoImageResponse, ProgressPhotoError> = change == .purgeWithReadFailure
+                ? .failure(.unavailable) : .success(.image(photoFixturePNG, etag: nil))
+            let repo = PausedPhotoRead(response)
+            let scope = ProgressPhotoRouteScope()
+            let cache = ProgressPhotoImageCache()
+            let key = ProgressPhotoImageCache.Key(id: photoFixtureId, thumbnail: false)
+            let request = Task { try await cache.load(key, repository: repo, scope: scope) }
+            await repo.waitForFetch()
+            switch change {
+            case .purge, .purgeWithReadFailure: cache.clear()
+            case .removeOther: cache.remove(id: conditionalFixtureId)
+            case .removeCurrent: cache.remove(id: key.id)
+            case .retire:
+                scope.retire()
+                cache.clear()
+            }
+            await repo.resumeFetch()
+
+            switch change {
+            case .purge, .removeOther:
+                let image = try await request.value
+                XCTAssertEqual(image.width, 6)
+                if change == .purge {
+                    XCTAssertNil(cache.image(for: key), "An older response must not refill a purged cache")
+                } else {
+                    XCTAssertTrue(cache.image(for: key) === image, "Removing another photo must not interrupt this load")
+                }
+            case .purgeWithReadFailure, .removeCurrent:
+                do {
+                    _ = try await request.value
+                    XCTFail("A failed or removed photo must not reach the viewer")
+                } catch let error as ProgressPhotoError { XCTAssertEqual(error, .unavailable) }
+                XCTAssertNil(cache.image(for: key))
+            case .retire:
+                do { _ = try await request.value; XCTFail("A retired route must not receive pixels") }
+                catch is CancellationError {}
+                XCTAssertNil(cache.image(for: key))
+            }
+        }
+    }
+
     func testUnsolicitedNotModifiedIsNotAccepted() async throws {
         let repo = try imageRepository()
         do {
@@ -186,8 +230,7 @@ private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
             let validator = request.value(forHTTPHeaderField: "If-None-Match")
             XCTAssertTrue(validator == nil || validator == etag, "Each rendition must send only its own validator")
             let status = validator == etag ? (url.query == nil ? 304 : 403) : 200
-            let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAYAAAAICAIAAABVpBlvAAAAEUlEQVR4nGOYve8EGmIYDEIAUCpmMfUNqeIAAAAASUVORK5CYII=")!
-            respond(url, mime: "image/png", bytes: status == 200 ? png : Data(), status: status, etag: etag)
+            respond(url, mime: "image/png", bytes: status == 200 ? photoFixturePNG : Data(), status: status, etag: etag)
             return
         }
         if request.httpMethod == "GET", url.path == "/v1/files/\(unsolicitedFixtureId)" {
@@ -273,6 +316,39 @@ private final class PhotoURLProtocol: URLProtocol, @unchecked Sendable {
         }
     }
     override func stopLoading() {}
+}
+
+private let photoFixturePNG = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAYAAAAICAIAAABVpBlvAAAAEUlEQVR4nGOYve8EGmIYDEIAUCpmMfUNqeIAAAAASUVORK5CYII=")!
+
+private actor PausedPhotoRead: ProgressPhotoRepositoryProtocol {
+    let response: Result<ProgressPhotoImageResponse, ProgressPhotoError>
+    private var resume: CheckedContinuation<Void, Never>?
+    private var started: CheckedContinuation<Void, Never>?
+
+    init(_ response: Result<ProgressPhotoImageResponse, ProgressPhotoError>) { self.response = response }
+
+    func waitForFetch() async {
+        if resume == nil { await withCheckedContinuation { started = $0 } }
+    }
+    func resumeFetch() { resume?.resume(); resume = nil }
+
+    func fetchImage(_ id: String, thumbnail: Bool, ifNoneMatch: String?) async throws -> ProgressPhotoImageResponse {
+        await withCheckedContinuation { resume = $0; started?.resume(); started = nil }
+        return try response.get()
+    }
+
+    func angles() throws -> [ProgressPhotoAngle] { throw ProgressPhotoError.unavailable }
+    func summary() throws -> ProgressPhotoSummary { throw ProgressPhotoError.unavailable }
+    func photos(on date: String) throws -> [ProgressPhoto] { throw ProgressPhotoError.unavailable }
+    func history(angle: String) throws -> [ProgressPhoto] { throw ProgressPhotoError.unavailable }
+    func measurements(on dates: [String]) throws -> [BodyMeasurement] { throw ProgressPhotoError.unavailable }
+    func page(angle: String?, after: ProgressPhotoCursor?) throws -> ProgressPhotoPage { throw ProgressPhotoError.unavailable }
+    func reservation(_ id: String) throws -> ProgressPhoto? { throw ProgressPhotoError.unavailable }
+    func reserve(_ fields: ProgressPhotoFields) throws -> String { throw ProgressPhotoError.unavailable }
+    func upload(_ jpeg: Data, to id: String) throws -> Bool { throw ProgressPhotoError.unavailable }
+    func update(_ id: String, fields: ProgressPhotoFields) throws -> Bool { throw ProgressPhotoError.unavailable }
+    func delete(_ id: String) throws -> Bool { throw ProgressPhotoError.unavailable }
+    func imageBytes(_ id: String, thumbnail: Bool) throws -> Data { throw ProgressPhotoError.unavailable }
 }
 
 private actor PhotoCacheSpy: GraphQLCacheStore {

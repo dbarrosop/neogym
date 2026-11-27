@@ -511,7 +511,8 @@ changes.
   surfaces. Thumbnail/original ETags are separate, 304s reuse decoded pixels,
   and failed validations evict the photo. Never store private photo pixels or
   validators on disk. Sign-out, backgrounding and memory warnings clear the
-  cache. An early scene-inactive cover hides the active surface without
+  cache. A memory purge lets still-active loads finish without refilling it.
+  An early scene-inactive cover hides the active surface without
   detaching its PhotosPicker; backgrounding retires the scope and drops
   create/edit drafts. Older/Newer step in place below a fixed-size image
   frame. Only the control-free full-screen cover handles horizontal photo steps

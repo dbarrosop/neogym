@@ -29,6 +29,7 @@ public final class ProgressPhotoImageCache {
     private var entries: [Key: Entry] = [:]
     private var access: UInt64 = 0
     private var generation: UInt64 = 0
+    private var inFlight: [UUID: String] = [:]
 
     public init(byteLimit: Int = 48 * 1024 * 1024, freshness: TimeInterval = 30) {
         self.byteLimit = byteLimit
@@ -38,7 +39,7 @@ public final class ProgressPhotoImageCache {
     public func image(for key: Key) -> CGImage? { entries[key]?.image }
 
     public func remove(id: String) {
-        generation &+= 1
+        inFlight = inFlight.filter { $0.value != id }
         evict(id: id)
     }
 
@@ -64,6 +65,9 @@ public final class ProgressPhotoImageCache {
             return old.image
         }
         let revision = generation
+        let loadID = UUID()
+        inFlight[loadID] = key.id
+        defer { inFlight[loadID] = nil }
         do {
             let response = try await repository.fetchImage(key.id, thumbnail: key.thumbnail, ifNoneMatch: old?.etag)
             let image: CGImage
@@ -78,16 +82,17 @@ public final class ProgressPhotoImageCache {
                 etag = old.etag
             }
             try scope.check()
-            guard revision == generation else { throw CancellationError() }
-            access &+= 1
-            insert(.init(image: image, etag: etag, validated: uptime, access: access), for: key)
+            guard inFlight[loadID] != nil else { throw ProgressPhotoError.unavailable }
+            // A memory purge must not refill the cache, but the still-active view can finish loading.
+            if revision == generation {
+                access &+= 1
+                insert(.init(image: image, etag: etag, validated: uptime, access: access), for: key)
+            }
             return image
         } catch {
             try scope.check()
-            guard revision == generation else { throw CancellationError() }
-            // Never continue showing stale pixels after authorization, missing
-            // data, or any other non-cancellation revalidation failure.
-            evict(id: key.id)
+            // Do not let invalidated work evict entries from newer loads.
+            if revision == generation, inFlight[loadID] != nil { evict(id: key.id) }
             throw error
         }
     }

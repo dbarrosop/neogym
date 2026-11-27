@@ -85,8 +85,10 @@ authenticated Storage GET revalidates with `If-None-Match` if an ETag was
 provided. A 304 keeps the same decoded image; a successful 200 replaces it,
 and an unsuccessful validation evicts the image instead of offering stale
 fallback. Source data, visual previews and validators are never written to disk.
-Deletion evicts both renditions; sign-out, account changes, actual backgrounding
-and memory pressure clear or discard the cache.
+Deletion evicts both renditions and prevents an in-flight load of that photo
+from publishing. Sign-out, account changes and actual backgrounding clear or
+retire photo work and the cache. Memory pressure purges the cache without
+stopping still-visible loads; those older loads cannot repopulate it.
 
 HTTPS requests bypass Foundation caching and the SDK's persistent GraphQL
 cache, disable redirects, and use only the matching SDK-managed bearer. Route
