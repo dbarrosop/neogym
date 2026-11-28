@@ -112,6 +112,34 @@ navigation issues and live-only coverage boundaries. See its
 [capture instructions](../../docs/ios/capture.md) for the opt-in, skipped-by-default
 `DemoGuideCaptureUITests` driver and Python reproduction/validation tools.
 
+## Private progress photos (signed-in iPhone only)
+
+Open **Progress › Body › Progress photos** for the latest check-in and photo
+count. **Add photos** lets you choose one library photo per angle for a single
+date. **View all** groups check-ins by date, shows any same-day body readings,
+and filters angles or loads older check-ins. The detail's **Older** and **Newer**
+buttons sit below the photo. Tap the picture to expand it without controls,
+swipe left or right through the same angle, or swipe up or down to return to the
+current photo's detail. The full-screen overlay shows its date, angle, same-day
+measurements and position. Edit the date or angle and delete from the detail;
+**Compare** shows two same-angle photos with a slider and measured changes.
+
+The app uses a native PhotosPicker for each angle and uploads sequentially;
+retry never re-uploads a completed slot. It prepares bounded JPEGs without
+source metadata. Photo previews reuse a bounded, account-scoped memory cache
+with ETag revalidation when available; there is no photo cache on disk. Detail
+and full screen keep the image frame fixed during loading. Backgrounding clears
+the cache, closes full screen and discards create/edit drafts.
+Photos do not write Body or Health data. Demo keeps measurement logging and
+offers [read-only fictional samples](../../docs/ios/README.md#demo-progress-photos)
+in the same gallery, full-screen viewer, and Compare screens. It has no picker
+or photo write actions and makes no photo network requests.
+If an upload was interrupted, check the gallery before starting a new one.
+Deletion removes access; Storage's physical cleanup is separate. See the
+[API and hosted acceptance](../../docs/developers/progress-photos.md). Confirm
+HEIC transfer and App Switcher redaction on a physical iPhone with disposable
+fixtures before publication; don't run signed-in smoke against production.
+
 ## Embedded Apple Watch companion (Phase 2)
 
 `NeoGymWatch` is a watchOS 27 companion embedded in the existing iPhone app

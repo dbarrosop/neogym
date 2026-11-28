@@ -3,12 +3,14 @@ import Foundation
 /// An isolated synthetic database. It never owns an SDK client, credential, cache or App Group URL.
 public actor DemoStore {
     public static let userId = "demo-athlete"
+    nonisolated let calendar: Calendar
     private var state: DemoState
     private let fileURL: URL?
     private var isActive = true
 
     public init(fileURL: URL? = nil, reset: Bool = false, now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) throws {
         self.fileURL = fileURL
+        self.calendar = calendar
         if !reset, let fileURL, FileManager.default.fileExists(atPath: fileURL.path) {
             let saved = try JSONDecoder().decode(DemoState.self, from: Data(contentsOf: fileURL))
             guard saved.version == DemoState.currentVersion else { throw DemoError.incompatibleData }

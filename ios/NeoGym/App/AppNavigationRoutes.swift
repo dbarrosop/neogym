@@ -125,6 +125,11 @@ enum ProgressRoute: Hashable {
     case exerciseDetail(String)
     case bodyMeasurementDetail(String)
     case bodyMeasurementCreate
+    case progressPhotoGallery
+    case progressPhotoCreate(date: String?, angle: String?)
+    case progressPhotoDetail(String)
+    case progressPhotoEdit(String)
+    case progressPhotoCompare(label: String, from: String?)
     case energyDetail(String)
     case energyCreate
 }

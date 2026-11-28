@@ -1,5 +1,6 @@
 import NeoGymKit
 import SwiftUI
+import UIKit
 
 /// Progress tab: Overview · Muscles · Strength · Body · Energy. The Muscles and
 /// Strength view models live here so their loaded history survives section
@@ -15,16 +16,31 @@ struct ProgressNavigationView: View {
     let currentUserId: String?
     /// Bumped by the shell after training mutations elsewhere.
     let trainingRevision: Int
+    let progressPhotos: (any ProgressPhotoRepositoryProtocol)?
+    @Binding var selectedTab: AppTab
     @Binding var path: [ProgressRoute]
     @Binding var section: ProgressSection
     let onSessionStarted: (String) -> Void
     @Environment(\.energyWidgetUpdates) private var widgetUpdates
+    @Environment(\.scenePhase) private var scenePhase
 
     @StateObject private var muscleModel: MuscleSetProgressViewModel
     @StateObject private var strengthModel: StrengthProgressViewModel
     @State private var reloadToken = 0
+    @State private var photoGalleryAngle = ""
+    @State private var photoImageCache = ProgressPhotoImageCache()
+    @State private var fullScreenPhoto: PhotoPresentation?
+    @State private var selectedPhoto: PhotoViewerSelection?
+    // Keep only the ID for returning from a pushed editor or after backgrounding.
+    @State private var detailSelection: (anchor: String, current: String)?
     @State private var muscleLoadedToken: Int?
     @State private var strengthLoadedToken: Int?
+
+    private struct PhotoPresentation: Identifiable {
+        let id = UUID()
+        let route: ProgressRoute
+        let selection: PhotoViewerSelection
+    }
 
     init(
         sessionsRepository: any SessionsRepositoryProtocol,
@@ -36,6 +52,8 @@ struct ProgressNavigationView: View {
         nutritionRepository: any NutritionFoodMealRepositoryProtocol,
         currentUserId: String?,
         trainingRevision: Int,
+        progressPhotos: (any ProgressPhotoRepositoryProtocol)?,
+        selectedTab: Binding<AppTab>,
         path: Binding<[ProgressRoute]>,
         section: Binding<ProgressSection>,
         onSessionStarted: @escaping (String) -> Void
@@ -49,6 +67,8 @@ struct ProgressNavigationView: View {
         self.nutritionRepository = nutritionRepository
         self.currentUserId = currentUserId
         self.trainingRevision = trainingRevision
+        self.progressPhotos = progressPhotos
+        _selectedTab = selectedTab
         _path = path
         _section = section
         self.onSessionStarted = onSessionStarted
@@ -66,6 +86,36 @@ struct ProgressNavigationView: View {
                     routeDestination(for: route)
                         .screenBackground()
                 }
+        }
+        .fullScreenCover(item: $fullScreenPhoto) { presentation in
+            fullScreenPhotoView(presentation)
+                .environment(\.privateProgressPhotos, progressPhotos)
+                .environment(\.progressPhotoImageCache, photoImageCache)
+                .environment(\.scenePhase, scenePhase)
+        }
+        .environment(\.privateProgressPhotos, progressPhotos)
+        .environment(\.progressPhotoImageCache, photoImageCache)
+        .onChange(of: selectedTab) {
+            if selectedTab != .progress {
+                retirePhotoPresentation()
+                if let route = path.last { retirePhotoForm(route) }
+            }
+        }
+        .onChange(of: path) {
+            retirePhotoPresentation()
+            if !path.contains(.progressPhotoGallery) { photoGalleryAngle = "" }
+            if let detailSelection, !path.contains(.progressPhotoDetail(detailSelection.anchor)) {
+                self.detailSelection = nil
+            }
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .background { clearPhotoMemory() }
+        }
+        .onChange(of: progressPhotos == nil) {
+            if progressPhotos == nil { clearPhotoMemory(); detailSelection = nil }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            photoImageCache.clear()
         }
     }
 
@@ -101,7 +151,8 @@ struct ProgressNavigationView: View {
                 repository: bodyRepository,
                 healthImporter: bodyHealthImporter,
                 userId: currentUserId,
-                reloadToken: reloadToken
+                reloadToken: reloadToken,
+                showsProgressPhotos: progressPhotos != nil && selectedTab == .progress && path.isEmpty
             )
         case .energy:
             DailyEnergyListView(
@@ -150,6 +201,10 @@ struct ProgressNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
+        case .progressPhotoGallery, .progressPhotoCreate, .progressPhotoDetail, .progressPhotoEdit, .progressPhotoCompare:
+            PhotoRouteBoundary(route: route, path: $path, selectedTab: $selectedTab, onBackground: { retirePhotoForm(route) }) { repository, scope in
+                photoDestination(route, repository: repository, scope: scope)
+            }
         case let .energyDetail(entryId):
             DailyEnergyDetailView(
                 entryId: entryId,
@@ -167,6 +222,86 @@ struct ProgressNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
+        }
+    }
+
+    @ViewBuilder
+    private func photoDestination(_ route: ProgressRoute, repository: any ProgressPhotoRepositoryProtocol,
+                                  scope: ProgressPhotoRouteScope) -> some View {
+        switch route {
+        case .progressPhotoGallery:
+            ProgressPhotoGallery(repository: repository, scope: scope, angle: $photoGalleryAngle)
+        case let .progressPhotoCreate(date, angle):
+            if !repository.isDemo {
+                ProgressPhotoCreate(repository: repository, scope: scope, initialDate: date, highlightedAngle: angle) {
+                    guard selectedTab == .progress, path.last == route else { return }
+                    photoGalleryAngle = ""
+                    // From Body, the gallery, or Compare, a spent check-in returns
+                    // to the gallery without leaving a form in the back stack.
+                    path = [.progressPhotoGallery]
+                }
+            }
+        case let .progressPhotoDetail(id):
+            let loadID = detailSelection?.anchor == id ? detailSelection?.current ?? id : id
+            ProgressPhotoRecord(repository: repository, scope: scope, id: loadID, title: "Progress photo") { photo in
+                ProgressPhotoViewer(repository: repository, scope: scope, photo: photo, selection: selectedPhoto) { selection in
+                    guard selectedTab == .progress, path.last == route else { return }
+                    fullScreenPhoto = PhotoPresentation(route: route, selection: selection)
+                } onStep: { selection in
+                    select(selection, from: route)
+                } onDeleted: { deleted in
+                    photoImageCache.remove(id: deleted)
+                    guard selectedTab == .progress, path.last == route else { return }
+                    path = [.progressPhotoGallery]
+                }
+            }
+        case let .progressPhotoEdit(id):
+            if !repository.isDemo {
+                ProgressPhotoRecord(repository: repository, scope: scope, id: id, title: "Edit progress photo") { photo in
+                    ProgressPhotoEdit(repository: repository, scope: scope, photo: photo)
+                }
+            }
+        case let .progressPhotoCompare(label, from):
+            ProgressPhotoCompare(repository: repository, scope: scope, initialLabel: label, initialPhoto: from)
+        default:
+            EmptyView()
+        }
+    }
+
+    private func fullScreenPhotoView(_ presentation: PhotoPresentation) -> some View {
+        // The mounted cover is the source of truth, not a read back from the
+        // presenting stack while SwiftUI is still performing the transition.
+        PhotoPrivacyBoundary(isPresented: true, fillsRoute: true, onBackground: { clearPhotoMemory() }) { repository, scope in
+            ProgressPhotoFullScreen(repository: repository, scope: scope, selection: presentation.selection) { selection in
+                select(selection, from: presentation.route)
+                fullScreenPhoto = nil
+            }
+        }
+        .background(Color.black.ignoresSafeArea())
+        .persistentSystemOverlays(.hidden)
+    }
+
+    private func select(_ selection: PhotoViewerSelection, from route: ProgressRoute) {
+        guard selectedTab == .progress, path.last == route, case let .progressPhotoDetail(id) = route else { return }
+        selectedPhoto = selection
+        detailSelection = (id, selection.photo.id)
+    }
+
+    private func retirePhotoPresentation() {
+        fullScreenPhoto = nil
+        selectedPhoto = nil
+    }
+
+    private func clearPhotoMemory() {
+        retirePhotoPresentation()
+        photoImageCache.clear()
+    }
+
+    private func retirePhotoForm(_ route: ProgressRoute) {
+        guard path.last == route else { return }
+        switch route {
+        case .progressPhotoCreate, .progressPhotoEdit: path.removeLast()
+        default: break
         }
     }
 

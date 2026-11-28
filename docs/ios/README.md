@@ -180,12 +180,30 @@ provenance. The walkthrough checks these outcomes against the isolated demo file
 | Shared chart controls | Period presets, Custom From/To dates, calendar popover and series visibility | [Chart controls](workflows.md#progress-charts) |
 | Body history | Separate weight/body-fat daily and rolling-average charts, latest-five list, detail and Load more | [Body browsing](workflows.md#body-history) |
 | Body entries | Create a manual reading; observe the duplicate-date error; choose a new date; edit/delete | [Body CRUD](workflows.md#body-crud) |
+| Progress photos | Browse, open full screen and compare bundled illustrations without signing in | [Demo photo walkthrough](#demo-progress-photos) |
 | Energy history | Active/resting chart, today's estimate, consumed/net charts, latest-five list, detail and Load more | [Energy browsing](workflows.md#energy-history) |
 | Energy entries | Create a manual entry; observe duplicate-date validation; choose a new date; edit/delete | [Energy CRUD](workflows.md#energy-crud) |
 
 These are fictional recorded measurements and calculated reports. Demo does not
 import Apple Health or Watch data. The Account connection disclosure remains
 visible even though the ordinary data/chart/editor views are shared with live mode.
+
+### Demo progress photos
+
+1. Open **Progress › Body** and scroll below **Body fat** to **Progress photos**.
+   Tap **View all** to see five fictional illustrations grouped across three
+   check-in dates. Use the **Front A** and **Back A** chips to filter by angle.
+2. Tap a **Front A** thumbnail. Use **Older** and **Newer** below the photo,
+   or tap the picture to go full screen. Swipe left/right to browse the same
+   angle and up/down to return to the current photo's detail. The overlay
+   shows the angle, date, available Body measurements and position.
+3. Tap **Compare** in the gallery or detail. Choose two dates for the same
+   angle and move the comparison slider. The dates and measurements are fictional.
+
+Demo photos are read-only: there is no add, edit, delete, Photos library access,
+or backend upload. This walkthrough is not yet part of the published screenshot
+catalog; the retained captures predate the feature. For a signed-in web walkthrough
+including photo writes, see the [web guide](../web/workflows.md#check-in-browse-compare-correct-and-delete-private-progress-photos--desktop).
 
 ## Me and lifecycle
 

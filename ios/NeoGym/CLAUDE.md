@@ -29,7 +29,10 @@ and rest timers use the `io.nhost.neogym.demo` suite, not standard defaults.
 Demo has no Health importers, Watch activation/PAT/hints, MCP, notification or
 Live Activity effects; all phone Energy widget saves/reloads must use the
 `energyWidgetUpdates` environment boundary, disabled in demo. Bundled demo
-illustrations never reach AsyncImage. Entering demo calls `AuthStore.retire()`
+illustrations never reach AsyncImage. Demo progress photos use a separate
+read-only repository with bundled illustrations for the Body card, gallery,
+viewer and Compare; the demo never constructs PhotosPicker or offers photo
+writes. Entering demo calls `AuthStore.retire()`
 to stop live observation/late callbacks without clearing credentials; Exit creates
 a new live runtime. Reset/exit invalidate demo stores and timers so late callbacks
 are inert. Keep the visible fictional-data banner, Reset and Exit.
@@ -498,6 +501,32 @@ changes.
   current-range refresh. Previous-range results are visibly labeled and kept
   on network failure, never copied into app storage; the SDK enforces scope
   and age on every read. Do not add weaker app-owned user cache keys.
+- **Private progress photos** do not use `GraphQLServicing`, `AsyncImage`, the
+  exercise Storage URL helper or the SDK's persistent cache. The optional
+  owner-bound repository is injected alongside the ordinary repositories; it
+  uses the same managed session store and SDK refresh transaction, but sends
+  photo GraphQL and Storage through an ephemeral, no-redirect transport.
+  Uploads use a separate five-minute resource budget with the same privacy
+  and cancellation rules; GraphQL and image reads keep their shorter limits.
+  The Body summary card and top photo route scope their metadata and requests;
+  only the bounded, per-account foreground image cache survives between
+  surfaces. Thumbnail/original ETags are separate, 304s reuse decoded pixels,
+  and failed validations evict the photo. Never store private photo pixels or
+  validators on disk. Sign-out, backgrounding and memory warnings clear the
+  cache. A memory purge lets still-active loads finish without refilling it.
+  An early scene-inactive cover hides the active surface without
+  detaching its PhotosPicker; backgrounding retires the scope and drops
+  create/edit drafts. Older/Newer step in place below a fixed-size image
+  frame. Only the control-free full-screen cover handles horizontal photo steps
+  and vertical dismissal; it starts with the detail's known photo and history
+  and has its own privacy scope. It closes on backgrounding, and explicit
+  dismissal returns to the selected photo without altering Back history. Completing a
+  multi-angle check-in or deleting opens the gallery in one path update.
+  Compare uses a native slider and reads only the selected dates
+  and their measurement lookbacks. Photo writes never invalidate Body or
+  WidgetKit. See
+  [`progress-photos.md`](../../docs/developers/progress-photos.md) for the retry
+  contract and release acceptance.
 - `NeoGymWidgets` contains the rest timer Live Activity and the Balance widget
   (small, medium, Lock Screen inline/rectangular/circular). Balance math, the
   `EnergyBalanceDisplay` formatter, the numeric token-free v2 aggregate DTO/store

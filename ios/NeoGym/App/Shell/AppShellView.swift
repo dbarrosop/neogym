@@ -162,6 +162,8 @@ struct AppShellView: View {
             nutritionRepository: nutritionRepository,
             currentUserId: userId,
             trainingRevision: trainingRevision,
+            progressPhotos: isSigningOut ? nil : environment.repositories.progressPhotos,
+            selectedTab: $selection,
             path: $progressPath,
             section: $progressSection,
             onSessionStarted: openSession
